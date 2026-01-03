@@ -11,7 +11,9 @@ import java.util.regex.Pattern;
  * This class implements TypeDetector and follows the Single Responsibility Principle
  * by focusing solely on ENUM detection.
  *
- * Heuristic: UPPER_CASE with underscores (e.g., STATUS_ACTIVE, USER_ROLE_ADMIN)
+ * Heuristic: UPPER_CASE with or without underscores
+ * Examples with underscores: STATUS_ACTIVE, USER_ROLE_ADMIN, ERROR_CODE_404
+ * Examples without underscores: SUCCESS, ERROR, ACTIVE, PENDING, OK
  * Pattern: ^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$
  */
 public class EnumDetector implements TypeDetector {
