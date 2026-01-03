@@ -20,11 +20,19 @@ class EnumDetectorTest {
 
     @Test
     void shouldMatchValidEnumPatterns() {
+        // Enums with underscores
         assertThat(detector.matches("STATUS_ACTIVE")).isTrue();
         assertThat(detector.matches("USER_ROLE_ADMIN")).isTrue();
         assertThat(detector.matches("TAG_PREMIUM")).isTrue();
         assertThat(detector.matches("ERROR_CODE_404")).isTrue();
+
+        // Enums without underscores
         assertThat(detector.matches("OK")).isTrue();
+        assertThat(detector.matches("SUCCESS")).isTrue();
+        assertThat(detector.matches("ERROR")).isTrue();
+        assertThat(detector.matches("ACTIVE")).isTrue();
+        assertThat(detector.matches("PENDING")).isTrue();
+        assertThat(detector.matches("FAILED")).isTrue();
     }
 
     @Test
@@ -42,6 +50,13 @@ class EnumDetectorTest {
     @Test
     void shouldMatchArrayOfEnums() throws Exception {
         String json = "[\"STATUS_ACTIVE\", \"STATUS_INACTIVE\", \"STATUS_PENDING\"]";
+        JsonNode arrayNode = objectMapper.readTree(json);
+        assertThat(detector.matchesArray(arrayNode)).isTrue();
+    }
+
+    @Test
+    void shouldMatchArrayOfEnumsWithoutUnderscores() throws Exception {
+        String json = "[\"SUCCESS\", \"ERROR\", \"PENDING\", \"ACTIVE\"]";
         JsonNode arrayNode = objectMapper.readTree(json);
         assertThat(detector.matchesArray(arrayNode)).isTrue();
     }

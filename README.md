@@ -1,18 +1,40 @@
-# JSON to Avro Schema Converter
+# OpenAPI/JSON to Avro Schema Converter
 
-Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc) à partir de fichiers JSON avec inférence intelligente des types.
+Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc) à partir de :
+- **Fichiers OpenAPI/Swagger** (YAML ou JSON) avec types explicites et enums
+- **Fichiers JSON de données** avec inférence intelligente des types
 
 ## 🎯 Fonctionnalités
 
+### OpenAPI/Swagger → Avro
+- ✅ **Conversion directe** : Pas d'inférence, utilise les types définis dans OpenAPI
+- ✅ **Support YAML et JSON** : Détection automatique du format
+- ✅ **Enums explicites** : Conversion directe des enums OpenAPI avec tous leurs symboles
+- ✅ **Mode unifié** (⭐ Nouveau) : Génère un seul fichier avec toutes les définitions et des références
+- ✅ **Formats OpenAPI** : uuid, date-time, etc.
+- ✅ **Références** : Résolution automatique des `$ref`
+- ✅ **Propriétés requises** : Les champs non-required deviennent nullable
+- ✅ **Types OpenAPI → Avro** :
+  - string → STRING (avec logical types si format: uuid, date-time)
+  - integer → INT ou LONG
+  - number → FLOAT ou DOUBLE
+  - boolean → BOOLEAN
+  - object → RECORD
+  - array → ARRAY
+  - enum → ENUM
+
+### JSON Data → Avro
 - ✅ **Inférence automatique des types** : Détection intelligente des types primitifs et complexes
 - ✅ **Types primitifs** : string, boolean
 - ✅ **Types complexes** :
   - **UUID** : Détection par regex avec logical type
-  - **ENUM** : Détection heuristique (UPPER_CASE avec underscores)
+  - **ENUM** : Détection heuristique (UPPER_CASE avec/sans underscores)
   - **Arrays** : Analyse complète de tous les éléments
   - **Records imbriqués** : Support récursif
 - ✅ **Gestion des nulls** : Génération automatique d'union types `["null", "type"]` avec `default: null`
 - ✅ **Noms capitalisés** : Types complexes avec noms en PascalCase
+
+### Général
 - ✅ **Architecture SOLID** : Code maintenable et extensible
 - ✅ **Fat JAR** : Exécutable autonome sans dépendances externes
 
@@ -41,31 +63,193 @@ Cela génère :
 
 ## 💻 Utilisation
 
+Le CLI détecte automatiquement le type de fichier d'entrée (OpenAPI ou JSON) et utilise le convertisseur approprié.
+
 ### Méthode 1 : Fat JAR (Recommandé)
 
-```bash
-java -jar target/json-to-avro-converter.jar <input.json> <output.avsc>
-```
-
-**Exemple :**
+#### Convertir un fichier JSON de données
 ```bash
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
 ```
 
-### Méthode 2 : Via Maven
-
+#### Convertir un fichier OpenAPI (tous les schémas séparés)
 ```bash
-mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="<input.json> <output.avsc>"
+java -jar target/json-to-avro-converter.jar api.yaml output-dir/
 ```
 
-**Exemple :**
+#### Convertir un schéma OpenAPI spécifique (mode standard)
+```bash
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User
+```
+
+#### Convertir un schéma OpenAPI en mode unifié (⭐ Recommandé)
+```bash
+java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --unified
+```
+
+Le mode `--unified` génère un **seul fichier** contenant :
+- Toutes les définitions de types (enums, records)
+- Des **références** au lieu de répétitions
+- Format compatible avec les outils Avro
+
+### Méthode 2 : Via Maven
+
+#### Convertir un fichier JSON de données
 ```bash
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="data.json schema.avsc"
 ```
 
+#### Convertir un fichier OpenAPI (mode standard)
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc User"
+```
+
+#### Convertir un fichier OpenAPI (mode unifié)
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --unified"
+```
+
+## 🔀 Quel Mode Choisir ?
+
+### Mode Unifié (--unified) ⭐ Recommandé
+
+**Quand l'utiliser :**
+- Vous voulez un **seul fichier** Avro contenant tous les types
+- Vous avez des **types partagés** (enums, records) utilisés à plusieurs endroits
+- Vous voulez éviter la **duplication** de définitions
+- Vous utilisez des **outils Avro** qui supportent les fichiers multi-schémas
+
+**Avantages :**
+- ✅ Pas de duplication de code
+- ✅ Un seul fichier à gérer
+- ✅ Types réutilisables
+- ✅ Format Avro standard pour multi-types
+
+**Commande :**
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --unified"
+```
+
+### Mode Standard (par défaut)
+
+**Quand l'utiliser :**
+- Vous voulez des **fichiers séparés** pour chaque type
+- Vous avez besoin de **déployer les schémas individuellement**
+- Vous utilisez un **registre de schémas** qui gère un schéma par fichier
+
+**Commande :**
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml output/"
+```
+
+---
+
 ## 📚 Exemples
 
-### Exemple 1 : Types Primitifs et Complexes
+### Exemple 1 : Mode Unifié vs Mode Standard
+
+**Input OpenAPI (api.yaml) :**
+```yaml
+openapi: 3.0.3
+info:
+  title: User API
+  version: 1.0.0
+
+components:
+  schemas:
+    CardType:
+      type: string
+      enum:
+        - DEBIT
+        - CREDIT
+        - PREPAID
+
+    CreditCard:
+      type: object
+      properties:
+        number:
+          type: string
+        type:
+          $ref: '#/components/schemas/CardType'
+      required:
+        - number
+        - type
+```
+
+#### Mode Standard (types répétés)
+
+**Commande :**
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml CreditCard.avsc CreditCard"
+```
+
+**Output (CreditCard.avsc) :**
+```json
+{
+  "type": "record",
+  "name": "CreditCardRecord",
+  "namespace": "com.shanks.generated",
+  "fields": [
+    {
+      "name": "number",
+      "type": "string"
+    },
+    {
+      "name": "type",
+      "type": {
+        "type": "enum",
+        "name": "CardTypeEnum",
+        "namespace": "com.shanks.generated",
+        "symbols": ["DEBIT", "CREDIT", "PREPAID"]
+      }
+    }
+  ]
+}
+```
+
+⚠️ **Problème** : L'enum est défini inline. Si utilisé plusieurs fois, il sera répété.
+
+#### Mode Unifié (⭐ Recommandé - types référencés)
+
+**Commande :**
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml CreditCard.avsc CreditCard --unified"
+```
+
+**Output (CreditCard.avsc) :**
+```json
+[
+  {
+    "type": "enum",
+    "name": "CardTypeEnum",
+    "namespace": "com.shanks.generated",
+    "symbols": ["DEBIT", "CREDIT", "PREPAID"]
+  },
+  {
+    "type": "record",
+    "name": "CreditCardRecord",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "number",
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "type": "com.shanks.generated.CardTypeEnum"
+      }
+    ]
+  }
+]
+```
+
+✅ **Avantages** :
+- Enum défini **une seule fois** en haut du fichier
+- Référencé par son nom `"com.shanks.generated.CardTypeEnum"`
+- Pas de duplication
+- Format standard Avro pour les fichiers multi-types
+
+### Exemple 2 : Types Primitifs et Complexes (JSON Data)
 
 **Input JSON (data.json) :**
 ```json
@@ -159,7 +343,7 @@ java -jar target/json-to-avro-converter.jar data.json schema.avsc
 }
 ```
 
-### Exemple 2 : Objets Imbriqués
+### Exemple 3 : Objets Imbriqués (JSON Data)
 
 **Input JSON :**
 ```json
@@ -215,23 +399,29 @@ Le projet suit les **principes SOLID** pour assurer la maintenabilité et l'exte
 
 ```
 com.shanks/
-├── App.java                          # Point d'entrée CLI
+├── App.java                             # Point d'entrée CLI
 ├── cli/
-│   ├── CliArguments.java             # Parsing et validation des arguments
-│   └── ConverterCli.java             # Orchestration CLI
+│   ├── CliArguments.java                # Parsing et validation des arguments
+│   └── ConverterCli.java                # Orchestration CLI (JSON + OpenAPI)
 ├── converter/
-│   ├── JsonToAvroConverter.java      # Orchestrateur principal
-│   ├── TypeInferenceEngine.java      # Moteur d'inférence de types
-│   ├── SchemaGenerator.java          # Générateur de schémas Avro
+│   ├── JsonToAvroConverter.java         # Convertisseur JSON → Avro
+│   ├── OpenApiToAvroConverter.java      # Convertisseur OpenAPI → Avro
+│   ├── TypeInferenceEngine.java         # Moteur d'inférence de types
+│   ├── SchemaGenerator.java             # Générateur de schémas Avro (mode standard)
+│   ├── UnifiedSchemaGenerator.java      # Générateur unifié avec références
 │   └── interfaces/
-│       └── TypeDetector.java         # Interface pour détecteurs (SOLID)
+│       └── TypeDetector.java            # Interface pour détecteurs (SOLID)
+├── parser/
+│   └── OpenApiParser.java               # Parser OpenAPI/Swagger (YAML/JSON)
+├── mapper/
+│   └── OpenApiToAvroTypeMapper.java     # Mapping types OpenAPI → Avro
 ├── model/
-│   ├── JsonType.java                 # Enum des types JSON
-│   ├── AvroTypeInfo.java             # Métadonnées de types Avro
-│   └── InferredSchema.java           # Schéma inféré intermédiaire
+│   ├── JsonType.java                    # Enum des types JSON
+│   ├── AvroTypeInfo.java                # Métadonnées de types Avro
+│   └── InferredSchema.java              # Schéma inféré intermédiaire
 └── util/
-    ├── UuidDetector.java             # Détecteur UUID (implements TypeDetector)
-    └── EnumDetector.java             # Détecteur ENUM (implements TypeDetector)
+    ├── UuidDetector.java                # Détecteur UUID (implements TypeDetector)
+    └── EnumDetector.java                # Détecteur ENUM (implements TypeDetector)
 ```
 
 ### Principes SOLID Appliqués
@@ -301,6 +491,7 @@ mvn test -Dtest=AppTest
 | Apache Avro | 1.11.3 | Génération de schémas Avro |
 | Jackson Databind | 2.16.1 | Parsing JSON |
 | Jackson Core | 2.16.1 | Support Jackson |
+| Swagger Parser | 2.1.22 | Parsing OpenAPI/Swagger (YAML/JSON) |
 | JUnit Jupiter | 5.10.0 | Tests unitaires |
 | AssertJ | 3.24.2 | Assertions fluides |
 | Maven Shade Plugin | 3.5.1 | Création du Fat JAR |
