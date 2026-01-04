@@ -45,6 +45,27 @@ components:
         - last
 
     # ========================================
+    # STRINGS WITH PATTERNS - Validation patterns
+    # ========================================
+    ContactInfo:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+        zipCode:
+          type: string
+          pattern: '^\d{5}(-\d{4})?$'
+          description: US ZIP code (5 digits or ZIP+4)
+        username:
+          type: string
+          pattern: '^[a-zA-Z0-9_-]{3,16}$'
+          description: Username (alphanumeric, 3-16 chars)
+      required:
+        - phoneNumber
+
+    # ========================================
     # NUMBERS - Integer and floating point
     # ========================================
     Statistics:
@@ -267,6 +288,10 @@ components:
         # Statistics
         stats:
           $ref: '#/components/schemas/Statistics'
+
+        # Contact information with patterns
+        contactInfo:
+          $ref: '#/components/schemas/ContactInfo'
 
       required:
         - username

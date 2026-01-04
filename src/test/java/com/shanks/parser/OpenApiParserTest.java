@@ -36,7 +36,7 @@ class OpenApiParserTest {
         assertThat(openAPI.getComponents()).isNotNull();
         assertThat(openAPI.getComponents().getSchemas()).isNotEmpty();
         assertThat(openAPI.getComponents().getSchemas()).containsKeys(
-                "CardType", "UserStatus", "Name", "Statistics", "UserFlags",
+                "CardType", "UserStatus", "Name", "ContactInfo", "Statistics", "UserFlags",
                 "Timestamps", "Coordinates", "Location", "CreditCard",
                 "Job", "User", "ResultResponse"
         );
@@ -50,6 +50,27 @@ class OpenApiParserTest {
         assertThat(cardTypeSchema).isNotNull();
         assertThat(cardTypeSchema.getEnum()).isNotNull();
         assertThat(cardTypeSchema.getEnum().toString()).contains("DEBIT", "CREDIT", "PREPAID");
+    }
+
+    @Test
+    void shouldParseSchemaWithPattern() throws IOException {
+        OpenAPI openAPI = parser.parse("test-openapi.yaml");
+
+        Schema<?> contactInfoSchema = openAPI.getComponents().getSchemas().get("ContactInfo");
+        assertThat(contactInfoSchema).isNotNull();
+        assertThat(contactInfoSchema.getProperties()).isNotNull();
+
+        Schema<?> phoneNumberSchema = contactInfoSchema.getProperties().get("phoneNumber");
+        assertThat(phoneNumberSchema).isNotNull();
+        assertThat(phoneNumberSchema.getPattern()).isEqualTo("^\\+?[1-9]\\d{1,14}$");
+
+        Schema<?> zipCodeSchema = contactInfoSchema.getProperties().get("zipCode");
+        assertThat(zipCodeSchema).isNotNull();
+        assertThat(zipCodeSchema.getPattern()).isEqualTo("^\\d{5}(-\\d{4})?$");
+
+        Schema<?> usernameSchema = contactInfoSchema.getProperties().get("username");
+        assertThat(usernameSchema).isNotNull();
+        assertThat(usernameSchema.getPattern()).isEqualTo("^[a-zA-Z0-9_-]{3,16}$");
     }
 
     @Test

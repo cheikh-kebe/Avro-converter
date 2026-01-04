@@ -64,7 +64,7 @@ public class OpenApiToAvroTypeMapper {
 
         switch (type.toLowerCase()) {
             case "string":
-                return mapStringType(format);
+                return mapStringType(format, schema.getPattern());
             case "integer":
                 return mapIntegerType(format);
             case "number":
@@ -85,7 +85,7 @@ public class OpenApiToAvroTypeMapper {
     }
 
     /**
-     * Map string type with format.
+     * Map string type with format and pattern.
      */
     private AvroTypeInfo mapStringType(String format) {
         if (format != null) {
@@ -106,6 +106,34 @@ public class OpenApiToAvroTypeMapper {
         return AvroTypeInfo.builder()
                 .avroType(Type.STRING)
                 .build();
+    }
+
+    /**
+     * Map string type with format and pattern.
+     */
+    private AvroTypeInfo mapStringType(String format, String pattern) {
+        AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
+                .avroType(Type.STRING);
+
+        if (format != null) {
+            switch (format.toLowerCase()) {
+                case "uuid":
+                    builder.logicalType("uuid");
+                    break;
+                case "date":
+                case "date-time":
+                    return builder
+                            .avroType(Type.LONG)
+                            .logicalType("timestamp-millis")
+                            .build();
+            }
+        }
+
+        if (pattern != null && !pattern.isEmpty()) {
+            builder.pattern(pattern);
+        }
+
+        return builder.build();
     }
 
     /**
