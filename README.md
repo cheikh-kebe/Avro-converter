@@ -12,10 +12,11 @@ Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc)
 - ✅ **Enums explicites** : Conversion directe des enums OpenAPI avec tous leurs symboles
 - ✅ **Mode unifié** (⭐ Nouveau) : Génère un seul fichier avec toutes les définitions et des références
 - ✅ **Formats OpenAPI** : uuid, date-time, etc.
+- ✅ **Patterns de validation** (⭐ Nouveau) : Extraction automatique des patterns regex des champs string
 - ✅ **Références** : Résolution automatique des `$ref`
 - ✅ **Propriétés requises** : Les champs non-required deviennent nullable
 - ✅ **Types OpenAPI → Avro** :
-  - string → STRING (avec logical types si format: uuid, date-time)
+  - string → STRING (avec logical types si format: uuid, date-time et pattern si spécifié)
   - integer → INT ou LONG
   - number → FLOAT ou DOUBLE
   - boolean → BOOLEAN
@@ -42,6 +43,20 @@ Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc)
 
 - **Java** 21 ou supérieur
 - **Maven** 3.6+
+
+### Versions OpenAPI/Swagger supportées
+
+Le convertisseur utilise **Swagger Parser v3 (2.1.22)** qui supporte :
+
+- ✅ **OpenAPI 3.0.x** (3.0.0, 3.0.1, 3.0.2, 3.0.3) - **Recommandé**
+- ✅ **OpenAPI 3.1.x** - Support partiel (certaines nouvelles fonctionnalités peuvent ne pas être prises en charge)
+- ✅ **Swagger 2.0** - Support rétrocompatible
+
+**Format de fichier :**
+- YAML (`.yaml`, `.yml`)
+- JSON (`.json`)
+
+**Note** : Le fichier de test inclus ([test-openapi.yaml](test-openapi.yaml)) utilise OpenAPI 3.0.3.
 
 ## 🚀 Installation & Build
 
@@ -82,7 +97,7 @@ java -jar target/json-to-avro-converter.jar api.yaml output-dir/
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User
 ```
 
-#### Convertir un schéma OpenAPI en mode unifié (⭐ Recommandé)
+#### Convertir un schéma OpenAPI en mode unifié (⭐ Recommandé ⭐)
 ```bash
 java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --unified
 ```
@@ -249,7 +264,74 @@ mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml CreditCard
 - Pas de duplication
 - Format standard Avro pour les fichiers multi-types
 
-### Exemple 2 : Types Primitifs et Complexes (JSON Data)
+### Exemple 2 : Patterns de Validation (OpenAPI)
+
+**Input OpenAPI (api.yaml) :**
+```yaml
+openapi: 3.0.3
+info:
+  title: Contact API
+  version: 1.0.0
+
+components:
+  schemas:
+    ContactInfo:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+          description: Phone number in E.164 format
+        zipCode:
+          type: string
+          pattern: '^\d{5}(-\d{4})?$'
+          description: US ZIP code
+        email:
+          type: string
+          format: email
+      required:
+        - phoneNumber
+```
+
+**Commande (mode unifié) :**
+```bash
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ContactInfo.avsc ContactInfo --unified"
+```
+
+**Output (ContactInfo.avsc) :**
+```json
+[
+  {
+    "type": "record",
+    "name": "ContactInfoRecord",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "phoneNumber",
+        "type": {"type": "string", "pattern": "^\\+?[1-9]\\d{1,14}$"}
+      },
+      {
+        "name": "zipCode",
+        "type": ["null", {"type": "string", "pattern": "^\\d{5}(-\\d{4})?$"}],
+        "default": null
+      },
+      {
+        "name": "email",
+        "type": ["null", "string"],
+        "default": null
+      }
+    ]
+  }
+]
+```
+
+✅ **Points clés** :
+- Les patterns sont **automatiquement extraits** de l'OpenAPI
+- Les backslashes sont **correctement échappés** dans le JSON (`\d` → `\\d`)
+- Compatible avec les **champs nullable** (union types)
+- Fonctionne en **mode standard et unifié**
+
+### Exemple 3 : Types Primitifs et Complexes (JSON Data)
 
 **Input JSON (data.json) :**
 ```json
@@ -436,7 +518,7 @@ com.shanks/
 
 ## 🧪 Tests
 
-Le projet contient **17 tests unitaires** couvrant tous les composants.
+Le projet contient **39 tests unitaires** couvrant tous les composants.
 
 ### Exécuter tous les tests
 
@@ -461,6 +543,10 @@ mvn test -Dtest=AppTest
 - ✅ Inférence de types primitifs
 - ✅ Gestion des arrays et records
 - ✅ Gestion des nulls et unions
+- ✅ Parsing OpenAPI avec patterns
+- ✅ Mapping des patterns OpenAPI → Avro
+- ✅ Génération de schémas avec patterns (mode standard et unifié)
+- ✅ Échappement correct des caractères spéciaux dans les patterns
 
 ## 📊 Détails Techniques
 

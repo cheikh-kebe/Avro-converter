@@ -23,6 +23,7 @@ public class AvroTypeInfo {
     private final List<String> enumSymbols;
     private final AvroTypeInfo arrayItemType;
     private final String recordName;
+    private final String pattern;
 
     private AvroTypeInfo(Builder builder) {
         this.avroType = builder.avroType;
@@ -33,6 +34,7 @@ public class AvroTypeInfo {
         this.enumSymbols = builder.enumSymbols;
         this.arrayItemType = builder.arrayItemType;
         this.recordName = builder.recordName;
+        this.pattern = builder.pattern;
     }
 
     public Schema.Type getAvroType() {
@@ -67,6 +69,10 @@ public class AvroTypeInfo {
         return recordName;
     }
 
+    public String getPattern() {
+        return pattern;
+    }
+
     /**
      * Builder for AvroTypeInfo following the Builder pattern.
      */
@@ -79,6 +85,7 @@ public class AvroTypeInfo {
         private List<String> enumSymbols = new ArrayList<>();
         private AvroTypeInfo arrayItemType;
         private String recordName;
+        private String pattern;
 
         public Builder avroType(Schema.Type avroType) {
             this.avroType = avroType;
@@ -134,6 +141,11 @@ public class AvroTypeInfo {
 
         public Builder recordName(String recordName) {
             this.recordName = recordName;
+            return this;
+        }
+
+        public Builder pattern(String pattern) {
+            this.pattern = pattern;
             return this;
         }
 

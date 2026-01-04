@@ -187,8 +187,21 @@ public class UnifiedSchemaGenerator {
             case DOUBLE:
                 return "\"double\"";
             case STRING:
-                if ("uuid".equals(typeInfo.getLogicalType())) {
-                    return "{\"type\": \"string\", \"logicalType\": \"uuid\"}";
+                if ("uuid".equals(typeInfo.getLogicalType()) ||
+                    (typeInfo.getPattern() != null && !typeInfo.getPattern().isEmpty())) {
+                    StringBuilder stringType = new StringBuilder("{\"type\": \"string\"");
+                    if ("uuid".equals(typeInfo.getLogicalType())) {
+                        stringType.append(", \"logicalType\": \"uuid\"");
+                    }
+                    if (typeInfo.getPattern() != null && !typeInfo.getPattern().isEmpty()) {
+                        // Escape backslashes and quotes in pattern
+                        String escapedPattern = typeInfo.getPattern()
+                                .replace("\\", "\\\\")
+                                .replace("\"", "\\\"");
+                        stringType.append(", \"pattern\": \"").append(escapedPattern).append("\"");
+                    }
+                    stringType.append("}");
+                    return stringType.toString();
                 }
                 return "\"string\"";
 

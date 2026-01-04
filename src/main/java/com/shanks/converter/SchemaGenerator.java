@@ -80,18 +80,40 @@ public class SchemaGenerator {
     }
 
     /**
-     * Generate a string schema with optional logical type.
+     * Generate a string schema with optional logical type and pattern.
      * If the type has a name (recordName), create a named type.
      */
     private Schema generateStringSchema(AvroTypeInfo typeInfo) {
         if (typeInfo.getRecordName() != null && typeInfo.getLogicalType() != null) {
             // Créer un schéma avec un nom pour les types logiques
-            String schemaJson = String.format(
-                "{\"name\":\"%s\",\"type\":\"string\",\"logicalType\":\"%s\"}",
-                typeInfo.getRecordName(),
-                typeInfo.getLogicalType()
-            );
-            return new Schema.Parser().parse(schemaJson);
+            StringBuilder schemaJson = new StringBuilder();
+            schemaJson.append("{\"name\":\"").append(typeInfo.getRecordName()).append("\"");
+            schemaJson.append(",\"type\":\"string\"");
+            schemaJson.append(",\"logicalType\":\"").append(typeInfo.getLogicalType()).append("\"");
+            if (typeInfo.getPattern() != null && !typeInfo.getPattern().isEmpty()) {
+                // Escape backslashes and quotes in pattern
+                String escapedPattern = typeInfo.getPattern()
+                        .replace("\\", "\\\\")
+                        .replace("\"", "\\\"");
+                schemaJson.append(",\"pattern\":\"").append(escapedPattern).append("\"");
+            }
+            schemaJson.append("}");
+            return new Schema.Parser().parse(schemaJson.toString());
+        }
+
+        // For string with pattern but no logical type
+        if (typeInfo.getPattern() != null && !typeInfo.getPattern().isEmpty()) {
+            StringBuilder schemaJson = new StringBuilder();
+            schemaJson.append("{\"type\":\"string\"");
+            String escapedPattern = typeInfo.getPattern()
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"");
+            schemaJson.append(",\"pattern\":\"").append(escapedPattern).append("\"");
+            if (typeInfo.getLogicalType() != null) {
+                schemaJson.append(",\"logicalType\":\"").append(typeInfo.getLogicalType()).append("\"");
+            }
+            schemaJson.append("}");
+            return new Schema.Parser().parse(schemaJson.toString());
         }
 
         Schema stringSchema = Schema.create(Schema.Type.STRING);
@@ -260,7 +282,12 @@ public class SchemaGenerator {
                     json.append("{\n");
                     json.append(indentStr1).append("    \"name\" : \"").append(fieldTypeInfo.getRecordName()).append("\",\n");
                     json.append(indentStr1).append("    \"type\" : \"string\",\n");
-                    json.append(indentStr1).append("    \"logicalType\" : \"").append(fieldTypeInfo.getLogicalType()).append("\"\n");
+                    json.append(indentStr1).append("    \"logicalType\" : \"").append(fieldTypeInfo.getLogicalType()).append("\"");
+                    if (fieldTypeInfo.getPattern() != null && !fieldTypeInfo.getPattern().isEmpty()) {
+                        json.append(",\n");
+                        json.append(indentStr1).append("    \"pattern\" : \"").append(fieldTypeInfo.getPattern()).append("\"");
+                    }
+                    json.append("\n");
                     json.append(indentStr1).append("  }");
                 } else {
                     json.append(field.schema().toString(true).replace("\n", "\n" + indentStr1 + "  "));
