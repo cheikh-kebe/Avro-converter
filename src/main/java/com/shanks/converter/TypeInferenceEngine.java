@@ -13,7 +13,8 @@ import java.util.stream.Collectors;
  *
  * This class follows the Dependency Inversion Principle by depending on the
  * TypeDetector abstraction rather than concrete implementations.
- * It also follows the Single Responsibility Principle by focusing solely on type inference.
+ * It also follows the Single Responsibility Principle by focusing solely on
+ * type inference.
  */
 public class TypeInferenceEngine {
 
@@ -25,16 +26,14 @@ public class TypeInferenceEngine {
      * @param typeDetectors list of type detectors (e.g., UUID, ENUM)
      */
     public TypeInferenceEngine(List<TypeDetector> typeDetectors) {
-        this.typeDetectors = typeDetectors != null ?
-            new ArrayList<>(typeDetectors) :
-            new ArrayList<>();
+        this.typeDetectors = typeDetectors != null ? new ArrayList<>(typeDetectors) : new ArrayList<>();
         this.typeDetectors.sort((d1, d2) -> Integer.compare(d2.getPriority(), d1.getPriority()));
     }
 
     /**
      * Infer the Avro type from a JSON node.
      *
-     * @param node the JSON node to analyze
+     * @param node      the JSON node to analyze
      * @param fieldName the field name (for record generation)
      * @return the inferred Avro type information
      */
@@ -124,7 +123,7 @@ public class TypeInferenceEngine {
                             .arrayItemType(AvroTypeInfo.builder()
                                     .avroType(Schema.Type.ENUM)
                                     .enumSymbols(symbols)
-                                    .recordName(capitalize(fieldName) + "Enum")
+                                    .recordName(capitalize(fieldName))
                                     .build())
                             .build();
                 }
@@ -208,7 +207,7 @@ public class TypeInferenceEngine {
 
         return AvroTypeInfo.builder()
                 .avroType(Schema.Type.RECORD)
-                .recordName(capitalize(fieldName) + "Record")
+                .recordName(capitalize(fieldName))
                 .fields(fields)
                 .build();
     }
@@ -253,7 +252,8 @@ public class TypeInferenceEngine {
     }
 
     /**
-     * Sanitize field name for Avro (replace spaces and special chars with underscores).
+     * Sanitize field name for Avro (replace spaces and special chars with
+     * underscores).
      */
     private String sanitizeFieldName(String name) {
         return name.replaceAll("[^a-zA-Z0-9_]", "_");

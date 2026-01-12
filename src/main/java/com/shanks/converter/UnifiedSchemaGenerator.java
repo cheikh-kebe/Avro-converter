@@ -113,7 +113,15 @@ public class UnifiedSchemaGenerator {
                 json.append(indentStr).append("{\n");
                 json.append(indentStr).append("  \"type\": \"enum\",\n");
                 json.append(indentStr).append("  \"name\": \"").append(name).append("\",\n");
-                json.append(indentStr).append("  \"namespace\": \"").append(namespace).append("\",\n");
+                json.append(indentStr).append("  \"namespace\": \"").append(namespace).append("\"");
+
+                // Add doc if available
+                if (typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+                    json.append(",\n");
+                    json.append(indentStr).append("  \"doc\": \"").append(escapeJson(typeInfo.getDoc())).append("\"");
+                }
+
+                json.append(",\n");
                 json.append(indentStr).append("  \"symbols\": [");
 
                 List<String> symbols = typeInfo.getEnumSymbols();
@@ -130,7 +138,15 @@ public class UnifiedSchemaGenerator {
                 json.append(indentStr).append("{\n");
                 json.append(indentStr).append("  \"type\": \"record\",\n");
                 json.append(indentStr).append("  \"name\": \"").append(name).append("\",\n");
-                json.append(indentStr).append("  \"namespace\": \"").append(namespace).append("\",\n");
+                json.append(indentStr).append("  \"namespace\": \"").append(namespace).append("\"");
+
+                // Add doc if available
+                if (typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+                    json.append(",\n");
+                    json.append(indentStr).append("  \"doc\": \"").append(escapeJson(typeInfo.getDoc())).append("\"");
+                }
+
+                json.append(",\n");
                 json.append(indentStr).append("  \"fields\": [\n");
 
                 if (typeInfo.getFields() != null) {
@@ -138,7 +154,15 @@ public class UnifiedSchemaGenerator {
                     for (int i = 0; i < fields.size(); i++) {
                         Map.Entry<String, AvroTypeInfo> field = fields.get(i);
                         json.append(indentStr).append("    {\n");
-                        json.append(indentStr).append("      \"name\": \"").append(field.getKey()).append("\",\n");
+                        json.append(indentStr).append("      \"name\": \"").append(field.getKey()).append("\"");
+
+                        // Add doc for field if available
+                        if (field.getValue().getDoc() != null && !field.getValue().getDoc().isEmpty()) {
+                            json.append(",\n");
+                            json.append(indentStr).append("      \"doc\": \"").append(escapeJson(field.getValue().getDoc())).append("\"");
+                        }
+
+                        json.append(",\n");
                         json.append(indentStr).append("      \"type\": ");
                         json.append(generateFieldTypeJson(field.getValue(), namespace));
 
@@ -262,5 +286,19 @@ public class UnifiedSchemaGenerator {
     private String getSimpleName(String fullName) {
         int lastDot = fullName.lastIndexOf('.');
         return lastDot > 0 ? fullName.substring(lastDot + 1) : fullName;
+    }
+
+    /**
+     * Escape special characters for JSON strings.
+     */
+    private String escapeJson(String text) {
+        if (text == null) {
+            return null;
+        }
+        return text.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
     }
 }
