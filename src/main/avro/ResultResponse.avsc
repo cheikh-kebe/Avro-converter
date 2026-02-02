@@ -1,0 +1,378 @@
+[
+  {
+    "type": "record",
+    "name": "UserFlags",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "isActive",
+        "doc": "User is active (required)",
+        "type": "boolean"
+      },
+      {
+        "name": "isVerified",
+        "doc": "Email verified (optional)",
+        "type": ["null", "boolean"],
+        "default": null
+      },
+      {
+        "name": "isPremium",
+        "doc": "Premium member (optional)",
+        "type": ["null", "boolean"],
+        "default": null
+      },
+      {
+        "name": "acceptsMarketing",
+        "doc": "Accepts marketing emails",
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "UserStatus",
+    "namespace": "com.shanks.generated",
+    "doc": "User status (lowercase enum)",
+    "symbols": ["active", "inactive", "pending"]
+  },
+  {
+    "type": "record",
+    "name": "Name",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "first",
+        "doc": "First name",
+        "type": "string"
+      },
+      {
+        "name": "middle",
+        "doc": "Middle name (optional)",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "last",
+        "doc": "Last name",
+        "type": "string"
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "Coordinates",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "latitude",
+        "type": "double"
+      },
+      {
+        "name": "longitude",
+        "type": "double"
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "Location",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "street",
+        "type": "string"
+      },
+      {
+        "name": "city",
+        "type": "string"
+      },
+      {
+        "name": "state",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "country",
+        "type": "string"
+      },
+      {
+        "name": "zip",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "coordinates",
+        "type": ["null", "com.shanks.generated.Coordinates"],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "Job",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "title",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "company",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "salary",
+        "type": ["null", "double"],
+        "default": null
+      },
+      {
+        "name": "startDate",
+        "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+        "default": null
+      },
+      {
+        "name": "isRemote",
+        "type": ["null", "boolean"],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "enum",
+    "name": "CardType",
+    "namespace": "com.shanks.generated",
+    "doc": "Credit card types (uppercase enum)",
+    "symbols": ["DEBIT", "CREDIT", "PREPAID"]
+  },
+  {
+    "type": "record",
+    "name": "CreditCard",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "number",
+        "doc": "Card number",
+        "type": "string"
+      },
+      {
+        "name": "cvv",
+        "doc": "Security code (optional)",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "expiryMonth",
+        "doc": "Expiry month (1-12)",
+        "type": "int"
+      },
+      {
+        "name": "expiryYear",
+        "doc": "Expiry year",
+        "type": "int"
+      },
+      {
+        "name": "type",
+        "doc": "Credit card types (uppercase enum)",
+        "type": "com.shanks.generated.CardType"
+      },
+      {
+        "name": "isDefault",
+        "doc": "Is default payment method",
+        "type": "boolean"
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "Timestamps",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "userId",
+        "doc": "User ID as UUID",
+        "type": {"type": "string", "logicalType": "uuid"}
+      },
+      {
+        "name": "createdAt",
+        "doc": "Creation timestamp",
+        "type": {"type": "long", "logicalType": "timestamp-millis"}
+      },
+      {
+        "name": "birthDate",
+        "doc": "Birth date",
+        "type": ["null", {"type": "long", "logicalType": "timestamp-millis"}],
+        "default": null
+      },
+      {
+        "name": "website",
+        "doc": "Website URL",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "email",
+        "doc": "Email address",
+        "type": ["null", "string"],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "Statistics",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "totalUsers",
+        "doc": "Total user count (int)",
+        "type": "int"
+      },
+      {
+        "name": "totalViews",
+        "doc": "Total views (long)",
+        "type": "long"
+      },
+      {
+        "name": "averageRating",
+        "doc": "Average rating (float)",
+        "type": ["null", "float"],
+        "default": null
+      },
+      {
+        "name": "revenue",
+        "doc": "Total revenue (double)",
+        "type": ["null", "double"],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "ContactInfo",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "phoneNumber",
+        "doc": "Phone number in E.164 format",
+        "type": {"type": "string", "pattern": "^\\+?[1-9]\\d{1,14}$"}
+      },
+      {
+        "name": "zipCode",
+        "doc": "US ZIP code (5 digits or ZIP+4)",
+        "type": ["null", {"type": "string", "pattern": "^\\d{5}(-\\d{4})?$"}],
+        "default": null
+      },
+      {
+        "name": "username",
+        "doc": "Username (alphanumeric, 3-16 chars)",
+        "type": ["null", {"type": "string", "pattern": "^[a-zA-Z0-9_-]{3,16}$"}],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "User",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "username",
+        "type": "string"
+      },
+      {
+        "name": "password",
+        "type": ["null", "string"],
+        "default": null
+      },
+      {
+        "name": "flags",
+        "type": "com.shanks.generated.UserFlags"
+      },
+      {
+        "name": "age",
+        "type": ["null", "int"],
+        "default": null
+      },
+      {
+        "name": "accountBalance",
+        "type": ["null", "double"],
+        "default": null
+      },
+      {
+        "name": "status",
+        "doc": "User status (lowercase enum)",
+        "type": "com.shanks.generated.UserStatus"
+      },
+      {
+        "name": "name",
+        "type": "com.shanks.generated.Name"
+      },
+      {
+        "name": "location",
+        "type": ["null", "com.shanks.generated.Location"],
+        "default": null
+      },
+      {
+        "name": "job",
+        "type": ["null", "com.shanks.generated.Job"],
+        "default": null
+      },
+      {
+        "name": "creditCard",
+        "type": ["null", "com.shanks.generated.CreditCard"],
+        "default": null
+      },
+      {
+        "name": "timestamps",
+        "type": "com.shanks.generated.Timestamps"
+      },
+      {
+        "name": "emails",
+        "doc": "List of email addresses",
+        "type": ["null", {"type": "array", "items": "string"}],
+        "default": null
+      },
+      {
+        "name": "phoneNumbers",
+        "doc": "List of phone numbers",
+        "type": ["null", {"type": "array", "items": "string"}],
+        "default": null
+      },
+      {
+        "name": "stats",
+        "type": ["null", "com.shanks.generated.Statistics"],
+        "default": null
+      },
+      {
+        "name": "contactInfo",
+        "type": ["null", "com.shanks.generated.ContactInfo"],
+        "default": null
+      }
+    ]
+  },
+  {
+    "type": "record",
+    "name": "ResultResponse",
+    "namespace": "com.shanks.generated",
+    "fields": [
+      {
+        "name": "success",
+        "doc": "Request was successful",
+        "type": "boolean"
+      },
+      {
+        "name": "totalCount",
+        "doc": "Total number of results",
+        "type": "long"
+      },
+      {
+        "name": "result",
+        "doc": "List of users",
+        "type": ["null", {"type": "array", "items": "com.shanks.generated.User"}],
+        "default": null
+      }
+    ]
+  }
+]

@@ -1,8 +1,9 @@
-# OpenAPI/JSON to Avro Schema Converter
+# OpenAPI/JSON to Avro Schema Converter + Java Code Generator
 
-Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc) à partir de :
-- **Fichiers OpenAPI/Swagger** (YAML ou JSON) avec types explicites et enums
-- **Fichiers JSON de données** avec inférence intelligente des types
+Un outil Java complet pour travailler avec Apache Avro :
+- 🔄 **OpenAPI/Swagger → Avro** : Conversion de spécifications API en schémas Avro
+- 🔄 **JSON Data → Avro** : Inférence intelligente de schémas à partir de données JSON
+- ⚡ **Avro → Java** : Génération automatique de classes Java via Maven plugin
 
 ## 🎯 Fonctionnalités
 
@@ -34,6 +35,15 @@ Un convertisseur CLI Java qui génère automatiquement des schémas Avro (.avsc)
   - **Records imbriqués** : Support récursif
 - ✅ **Gestion des nulls** : Génération automatique d'union types `["null", "type"]` avec `default: null`
 - ✅ **Noms capitalisés** : Types complexes avec noms en PascalCase
+
+### Avro → Java (Code Generation with Maven Plugin)
+- ✅ **Génération automatique** : Classes Java générées pendant le build Maven
+- ✅ **Convention over configuration** : Structure de répertoires standard Maven
+- ✅ **Intégration IDE** : IntelliJ IDEA et Eclipse reconnaissent automatiquement les sources générées
+- ✅ **Types Java-friendly** : String au lieu de CharSequence, champs privés, getters/setters
+- ✅ **Support complet** : Records, enums, arrays, maps, unions, logical types (UUID, timestamp, decimal)
+- ✅ **Builder pattern** : Classes builder générées automatiquement pour tous les records
+- ✅ **Workflow simplifié** : Schémas versionnés dans `src/main/avro/`, classes en `target/`
 
 ### Général
 - ✅ **Architecture SOLID** : Code maintenable et extensible
@@ -156,6 +166,203 @@ mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResp
 ```bash
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml output/"
 ```
+
+---
+
+## ⚡ Génération de Classes Java (Avro → Java)
+
+Le projet utilise **avro-maven-plugin** pour générer automatiquement des classes Java à partir de schémas Avro pendant le build Maven.
+
+### 📁 Structure du Projet
+
+```
+src/
+├── main/
+│   ├── avro/              ← Place vos schémas .avsc ici (versionnés)
+│   │   ├── User.avsc
+│   │   ├── Product.avsc
+│   │   └── Order.avsc
+│   └── java/
+│       └── com/shanks/    ← Votre code applicatif
+└── test/
+    └── java/
+
+target/
+└── generated-sources/
+    └── avro/              ← Classes Java générées (non versionnées)
+        └── com/shanks/model/
+            ├── User.java
+            ├── Product.java
+            ├── ProductCategory.java  (enum)
+            ├── Order.java
+            ├── OrderItem.java
+            ├── OrderStatus.java      (enum)
+            └── Address.java
+```
+
+### 🚀 Workflow
+
+1. **Créer un schéma Avro** dans `src/main/avro/`
+
+**Exemple (`src/main/avro/User.avsc`):**
+```json
+{
+  "type": "record",
+  "name": "User",
+  "namespace": "com.shanks.model",
+  "doc": "User record",
+  "fields": [
+    {
+      "name": "userId",
+      "type": {"type": "string", "logicalType": "uuid"},
+      "doc": "Unique user identifier"
+    },
+    {
+      "name": "username",
+      "type": "string",
+      "doc": "Username for login"
+    },
+    {
+      "name": "email",
+      "type": "string"
+    },
+    {
+      "name": "age",
+      "type": ["null", "int"],
+      "default": null,
+      "doc": "User age (optional)"
+    },
+    {
+      "name": "createdAt",
+      "type": {"type": "long", "logicalType": "timestamp-millis"}
+    },
+    {
+      "name": "active",
+      "type": "boolean",
+      "default": true
+    }
+  ]
+}
+```
+
+2. **Compiler le projet** (génération automatique)
+
+```bash
+# Génère automatiquement les classes Java
+mvn compile
+
+# Ou juste générer les sources sans compiler
+mvn generate-sources
+
+# Ou build complet
+mvn clean install
+```
+
+3. **Utiliser les classes générées** dans votre code
+
+```java
+package com.shanks;
+
+import com.shanks.model.User;
+import java.util.UUID;
+import java.time.Instant;
+
+public class Main {
+    public static void main(String[] args) {
+        // Utiliser le builder généré automatiquement
+        User user = User.newBuilder()
+            .setUserId(UUID.randomUUID())
+            .setUsername("john.doe")
+            .setEmail("john@example.com")
+            .setAge(30)
+            .setCreatedAt(Instant.now())
+            .setActive(true)
+            .build();
+
+        // Accéder aux champs via getters
+        System.out.println("User: " + user.getUsername());
+        System.out.println("Email: " + user.getEmail());
+    }
+}
+```
+
+### 🔧 Configuration Maven
+
+Le plugin est déjà configuré dans `pom.xml`:
+
+```xml
+<plugin>
+    <groupId>org.apache.avro</groupId>
+    <artifactId>avro-maven-plugin</artifactId>
+    <version>1.11.3</version>
+    <executions>
+        <execution>
+            <phase>generate-sources</phase>
+            <goals>
+                <goal>schema</goal>
+            </goals>
+            <configuration>
+                <sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
+                <outputDirectory>${project.build.directory}/generated-sources/avro/</outputDirectory>
+                <stringType>String</stringType>
+                <fieldVisibility>PRIVATE</fieldVisibility>
+                <createSetters>true</createSetters>
+                <enableDecimalLogicalType>true</enableDecimalLogicalType>
+            </configuration>
+        </execution>
+    </executions>
+</plugin>
+```
+
+### 📝 Caractéristiques du Code Généré
+
+| Aspect | Configuration |
+|--------|---------------|
+| **Visibilité des champs** | `PRIVATE` (avec getters/setters) |
+| **Type String** | `java.lang.String` (pas CharSequence) |
+| **Setters** | Générés automatiquement |
+| **Builder pattern** | Généré pour tous les records |
+| **Logical types** | UUID → `java.util.UUID`, timestamp → `java.time.Instant` |
+| **Enums** | Classes enum Java séparées |
+| **Namespace** | Devient le package Java |
+
+### 💡 Avantages de cette Approche
+
+| Avantage | Description |
+|----------|-------------|
+| ✅ **Zéro configuration** | Fonctionne immédiatement après `mvn compile` |
+| ✅ **Toujours à jour** | Les classes se régénèrent si les schémas changent |
+| ✅ **IDE friendly** | Auto-complétion et navigation dans IntelliJ/Eclipse |
+| ✅ **CI/CD ready** | Génération automatique dans les pipelines |
+| ✅ **Type safety** | Compilation Java vérifie les types |
+| ✅ **No manual steps** | Pas de commande CLI à lancer manuellement |
+
+### 🎯 Cas d'Usage
+
+**✅ Utilisez la génération Maven SI:**
+- Vous avez des schémas Avro **stables et versionnés**
+- Vous voulez que les classes soient **toujours à jour**
+- Vous travaillez sur un **projet Maven standard**
+- Vous voulez l'**intégration IDE automatique**
+
+**Workflow typique:**
+```bash
+# 1. Créer/modifier un schéma
+vim src/main/avro/User.avsc
+
+# 2. Compiler (génération auto)
+mvn compile
+
+# 3. Les classes sont prêtes!
+# Utilisez-les directement dans votre code Java
+```
+
+### 📖 Documentation Complète
+
+Pour plus de détails sur les schémas Avro et leur utilisation :
+- Voir [src/main/avro/README.md](src/main/avro/README.md)
+- [Apache Avro Documentation](https://avro.apache.org/docs/current/)
+- [avro-maven-plugin Guide](https://avro.apache.org/docs/current/gettingstartedjava.html)
 
 ---
 
@@ -480,7 +687,7 @@ Le projet suit les **principes SOLID** pour assurer la maintenabilité et l'exte
 ### Structure des Packages
 
 ```
-com.shanks/
+src/main/java/com/shanks/
 ├── App.java                             # Point d'entrée CLI
 ├── cli/
 │   ├── CliArguments.java                # Parsing et validation des arguments
@@ -504,6 +711,22 @@ com.shanks/
 └── util/
     ├── UuidDetector.java                # Détecteur UUID (implements TypeDetector)
     └── EnumDetector.java                # Détecteur ENUM (implements TypeDetector)
+
+src/main/avro/                           # Schémas Avro (.avsc) - versionnés
+├── README.md                            # Documentation des schémas
+├── User.avsc
+├── Product.avsc
+└── Order.avsc
+
+target/generated-sources/avro/           # Classes Java générées - NON versionnées
+└── com/shanks/model/
+    ├── User.java                        # Généré depuis User.avsc
+    ├── Product.java                     # Généré depuis Product.avsc
+    ├── ProductCategory.java             # Enum généré
+    ├── Order.java                       # Généré depuis Order.avsc
+    ├── OrderItem.java                   # Nested record généré
+    ├── OrderStatus.java                 # Enum généré
+    └── Address.java                     # Nested record généré
 ```
 
 ### Principes SOLID Appliqués
@@ -518,7 +741,7 @@ com.shanks/
 
 ## 🧪 Tests
 
-Le projet contient **39 tests unitaires** couvrant tous les composants.
+Le projet contient **53 tests unitaires** couvrant tous les composants.
 
 ### Exécuter tous les tests
 
@@ -572,6 +795,8 @@ mvn test -Dtest=AppTest
 
 ## 🔧 Dépendances
 
+### Dependencies
+
 | Dépendance | Version | Usage |
 |------------|---------|-------|
 | Apache Avro | 1.11.3 | Génération de schémas Avro |
@@ -580,7 +805,13 @@ mvn test -Dtest=AppTest
 | Swagger Parser | 2.1.22 | Parsing OpenAPI/Swagger (YAML/JSON) |
 | JUnit Jupiter | 5.10.0 | Tests unitaires |
 | AssertJ | 3.24.2 | Assertions fluides |
-| Maven Shade Plugin | 3.5.1 | Création du Fat JAR |
+
+### Maven Plugins
+
+| Plugin | Version | Usage |
+|--------|---------|-------|
+| avro-maven-plugin | 1.11.3 | Génération automatique de classes Java depuis schémas Avro |
+| maven-shade-plugin | 3.5.1 | Création du Fat JAR |
 
 ## 📝 Configuration
 
@@ -634,6 +865,61 @@ Le convertisseur génère des schémas conformes à la spécification **Apache A
 - Union types avec null en première position
 - Valeurs par défaut pour les champs nullable
 - Logical types (UUID)
+
+## 🔀 Branches et Approches de Génération Java
+
+Ce projet propose **deux approches** pour générer des classes Java à partir de schémas Avro :
+
+### Branch `main` / `feat/avro-maven-plugin` (⭐ Recommandée)
+**Approche: Maven Plugin (Build-time)**
+
+Utilise `avro-maven-plugin` pour générer automatiquement les classes pendant le build Maven.
+
+**Avantages:**
+- ✅ Automatique lors de `mvn compile`
+- ✅ Intégration IDE native (IntelliJ/Eclipse)
+- ✅ Schémas versionnés dans `src/main/avro/`
+- ✅ Classes générées dans `target/` (non versionnées)
+- ✅ Workflow standard Maven
+- ✅ Parfait pour schémas stables
+
+**Utilisation:**
+```bash
+# Les schémas sont dans src/main/avro/
+mvn compile  # Génération automatique !
+```
+
+### Branch `feat/toJsonOrAvro`
+**Approche: CLI avec SpecificCompiler (Runtime)**
+
+Utilise une commande CLI avec l'API SpecificCompiler pour générer les classes à la demande.
+
+**Avantages:**
+- ✅ Flexibilité totale (génération à la demande)
+- ✅ Mode batch (répertoires)
+- ✅ Intégration avec workflow OpenAPI→Avro→Java
+- ✅ Parfait pour génération dynamique
+
+**Utilisation:**
+```bash
+# Génération manuelle via CLI
+mvn exec:java -Dexec.args="schema.avsc output/ --generate-java"
+# Ou batch mode
+mvn exec:java -Dexec.args="schemas/ output/ --generate-java"
+```
+
+### Quelle Approche Choisir ?
+
+| Critère | Maven Plugin | CLI SpecificCompiler |
+|---------|--------------|---------------------|
+| **Schémas stables** | ⭐ Parfait | Ok |
+| **Génération dynamique** | Limité | ⭐ Parfait |
+| **Intégration IDE** | ⭐ Native | Manuel |
+| **CI/CD** | ⭐ Automatique | Requiert script |
+| **Workflow OpenAPI→Avro→Java** | Multi-étapes | ⭐ Unifié |
+| **Convention Maven** | ⭐ Standard | Custom |
+
+**Recommandation:** Utilisez la branche `main` (Maven plugin) pour la plupart des cas. Utilisez `feat/toJsonOrAvro` si vous avez besoin de flexibilité pour générer dynamiquement des classes depuis des schémas créés à la volée.
 
 ## 🤝 Contribution
 

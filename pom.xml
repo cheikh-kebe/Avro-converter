@@ -61,6 +61,39 @@
 
   <build>
     <plugins>
+      <!-- Avro Maven Plugin pour générer les classes Java -->
+      <plugin>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-maven-plugin</artifactId>
+        <version>1.11.3</version>
+        <executions>
+          <execution>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>schema</goal>
+            </goals>
+            <configuration>
+              <!-- Répertoire contenant les schémas Avro (.avsc) -->
+              <sourceDirectory>${project.basedir}/src/main/avro/</sourceDirectory>
+              <!-- Répertoire de sortie pour les classes Java générées -->
+              <outputDirectory>${project.build.directory}/generated-sources/avro/</outputDirectory>
+              <!-- Utiliser String au lieu de CharSequence -->
+              <stringType>String</stringType>
+              <!-- Champs privés avec getters/setters -->
+              <fieldVisibility>PRIVATE</fieldVisibility>
+              <!-- Activer les setters -->
+              <createSetters>true</createSetters>
+              <!-- Support des types logiques décimaux -->
+              <enableDecimalLogicalType>true</enableDecimalLogicalType>
+              <!-- Créer des getters optionnels -->
+              <createOptionalGetters>false</createOptionalGetters>
+              <!-- Ajouter des annotations @Nullable -->
+              <optionalGettersForNullableFieldsOnly>false</optionalGettersForNullableFieldsOnly>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
       <!-- Maven Shade Plugin pour créer un Fat JAR -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>

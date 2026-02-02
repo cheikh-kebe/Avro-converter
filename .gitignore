@@ -101,7 +101,7 @@ output-from-fatjar.avsc
 
 # Claude Code files
 .claude/
-CLAUDE.md
+# CLAUDE.md  # Commented out to version control the file
 
 # Temporary files
 *.tmp
@@ -137,6 +137,14 @@ build/
 *secret*
 *.key
 *.pem
+
+# ===================================
+# Generated Sources
+# ===================================
+
+# Avro generated Java classes (from avro-maven-plugin)
+# These classes are generated from .avsc schemas during Maven build
+target/generated-sources/avro/
 
 # ===================================
 # Other
