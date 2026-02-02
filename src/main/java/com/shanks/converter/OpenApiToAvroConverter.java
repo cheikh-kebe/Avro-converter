@@ -37,7 +37,7 @@ public class OpenApiToAvroConverter {
     /**
      * Constructor with dependency injection for testing.
      *
-     * @param parser the OpenAPI parser
+     * @param parser          the OpenAPI parser
      * @param schemaGenerator the schema generator
      */
     public OpenApiToAvroConverter(OpenApiParser parser, SchemaGenerator schemaGenerator) {
@@ -51,7 +51,7 @@ public class OpenApiToAvroConverter {
      * Generates one Avro schema file per schema defined in components/schemas.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @param outputDirectory directory where Avro schema files will be written
+     * @param outputDirectory  directory where Avro schema files will be written
      * @throws IOException if file operations fail
      */
     public void convertAll(String inputOpenApiPath, String outputDirectory) throws IOException {
@@ -83,7 +83,7 @@ public class OpenApiToAvroConverter {
                 String outputFileName = schemaName + ".avsc";
                 String outputPath = new File(outputDir, outputFileName).getPath();
 
-                String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName + "Record");
+                String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
                 writeSchemaToFile(schemaJson, outputPath);
 
                 System.out.println("Generated: " + outputFileName);
@@ -95,8 +95,8 @@ public class OpenApiToAvroConverter {
      * Convert a specific schema from an OpenAPI file to an Avro schema file.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @param schemaName name of the schema in components/schemas to convert
-     * @param outputAvscPath path to output AVSC file
+     * @param schemaName       name of the schema in components/schemas to convert
+     * @param outputAvscPath   path to output AVSC file
      * @throws IOException if file operations fail
      */
     public void convert(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
@@ -116,17 +116,18 @@ public class OpenApiToAvroConverter {
         OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
         AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
 
-        String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName + "Record");
+        String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
         writeSchemaToFile(schemaJson, outputAvscPath);
     }
 
     /**
      * Convert a specific schema from an OpenAPI file to a unified Avro schema file.
-     * All dependent types (enums, records) are defined in the same file and referenced by name.
+     * All dependent types (enums, records) are defined in the same file and
+     * referenced by name.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @param schemaName name of the schema in components/schemas to convert
-     * @param outputAvscPath path to output AVSC file
+     * @param schemaName       name of the schema in components/schemas to convert
+     * @param outputAvscPath   path to output AVSC file
      * @throws IOException if file operations fail
      */
     public void convertUnified(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
@@ -146,7 +147,7 @@ public class OpenApiToAvroConverter {
         OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
         AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
 
-        String schemaJson = unifiedSchemaGenerator.generateUnifiedSchema(typeInfo, schemaName + "Record");
+        String schemaJson = unifiedSchemaGenerator.generateUnifiedSchema(typeInfo, schemaName);
         writeSchemaToFile(schemaJson, outputAvscPath);
     }
 
