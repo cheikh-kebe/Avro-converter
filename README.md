@@ -34,13 +34,13 @@ java -jar target/json-to-avro-converter.jar api.yaml output.avsc User --unified
 mvn compile  # Les classes sont générées dans target/generated-sources/avro/
 
 # Avro Schema → JSON exemple
-java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse
+java -jar target/json-to-avro-converter.jar generate src/main/avro/User.avsc User.json User
 
 # JSON → Trame binaire Avro
-java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse
+java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc User.json User.avro User
 
 # Génération JSON + encodage binaire en une commande
-java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse
+java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --generate User.avro User
 ```
 
 ## 📖 Documentation Détaillée
@@ -95,16 +95,16 @@ java -jar target/json-to-avro-converter.jar data.json schema.avsc
 **`generate`** — Génère un JSON exemple (format Avro JSON encoding) à partir d'un schéma `.avsc` :
 ```bash
 # Génère output.json avec des valeurs par défaut cohérentes
-java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse
+java -jar target/json-to-avro-converter.jar generate src/main/avro/User.avsc output.json User
 ```
 
 **`encode`** — Encode du JSON en fichier binaire `.avro` (container format avec header + schema embarqué) :
 ```bash
 # Depuis un fichier JSON existant
-java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse
+java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc User.json User.avro User
 
 # Auto-génération + encodage en une commande
-java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse
+java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --generate User.avro User
 ```
 
 **Types supportés pour la génération JSON :**
@@ -235,11 +235,11 @@ components:
 
 ```bash
 # Mode unifié (1 fichier, références)
-java -jar target/json-to-avro-converter.jar api.yaml output.avsc CreditCard --unified
+java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --unified
 # → Enum défini une fois, référencé par "com.shanks.generated.CardTypeEnum"
 
 # Mode standard (duplication possible)
-java -jar target/json-to-avro-converter.jar api.yaml output.avsc CreditCard
+java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard
 # → Enum inline dans le record
 ```
 
