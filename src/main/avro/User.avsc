@@ -351,28 +351,5 @@
         "default": null
       }
     ]
-  },
-  {
-    "type": "record",
-    "name": "ResultResponse",
-    "namespace": "com.shanks.generated",
-    "fields": [
-      {
-        "name": "success",
-        "doc": "Request was successful",
-        "type": "boolean"
-      },
-      {
-        "name": "totalCount",
-        "doc": "Total number of results",
-        "type": "long"
-      },
-      {
-        "name": "result",
-        "doc": "List of users",
-        "type": ["null", {"type": "array", "items": "com.shanks.generated.User"}],
-        "default": null
-      }
-    ]
   }
 ]

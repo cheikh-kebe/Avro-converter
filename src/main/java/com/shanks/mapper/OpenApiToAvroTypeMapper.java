@@ -213,7 +213,7 @@ public class OpenApiToAvroTypeMapper {
      */
     private AvroTypeInfo mapArrayType(ArraySchema arraySchema, String fieldName) {
         Schema<?> items = arraySchema.getItems();
-        AvroTypeInfo itemType = mapSchema(items, fieldName + "Item");
+        AvroTypeInfo itemType = mapSchema(items, fieldName);
 
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.ARRAY)

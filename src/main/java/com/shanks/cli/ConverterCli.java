@@ -2,6 +2,10 @@ package com.shanks.cli;
 
 import com.shanks.converter.JsonToAvroConverter;
 import com.shanks.converter.OpenApiToAvroConverter;
+import com.shanks.serializer.AvroBinaryEncoder;
+import com.shanks.serializer.AvroJsonGenerator;
+import com.shanks.serializer.SchemaLoader;
+import org.apache.avro.Schema;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -12,6 +16,10 @@ import java.io.IOException;
  *
  * Supports both OpenAPI/Swagger specifications and JSON data files.
  * Automatically detects input file type.
+ *
+ * Sub-commands:
+ *   generate - Generate sample JSON from an Avro schema
+ *   encode   - Encode JSON to Avro binary format
  *
  * This class follows the Single Responsibility Principle by coordinating
  * CLI operations and user interaction.
@@ -48,51 +56,17 @@ public class ConverterCli {
      */
     public int run(String[] args) {
         try {
-            CliArguments cliArgs = CliArguments.parse(args);
-            cliArgs.validateInputExists();
-            cliArgs.validateOutputWritable();
-
-            String inputPath = cliArgs.getInputJsonPath();
-            String outputPath = cliArgs.getOutputAvscPath();
-
-            if (isOpenApiFile(inputPath)) {
-                System.out.println("Converting OpenAPI/Swagger to Avro schema...");
-                System.out.println("  Input:  " + inputPath);
-                System.out.println("  Output: " + outputPath);
-
-                // Check if unified mode is requested (4th argument)
-                boolean unifiedMode = args.length >= 4 && "--unified".equals(args[3]);
-
-                // If args contains a schema name (3rd argument), convert specific schema
-                if (args.length >= 3 && !args[2].startsWith("--")) {
-                    String schemaName = args[2];
-                    System.out.println("  Schema: " + schemaName);
-
-                    if (unifiedMode) {
-                        System.out.println("  Mode:   Unified (all types in one file)");
-                        openApiConverter.convertUnified(inputPath, schemaName, outputPath);
-                    } else {
-                        openApiConverter.convert(inputPath, schemaName, outputPath);
-                    }
-                } else {
-                    // Extract output directory and convert all schemas
-                    int lastSlash = outputPath.lastIndexOf('/');
-                    if (lastSlash == -1) {
-                        lastSlash = outputPath.lastIndexOf('\\');
-                    }
-                    String outputDir = lastSlash > 0 ? outputPath.substring(0, lastSlash) : ".";
-                    System.out.println("  Generating all schemas to directory: " + outputDir);
-                    openApiConverter.convertAll(inputPath, outputDir);
+            if (args != null && args.length > 0) {
+                String command = args[0];
+                if ("generate".equals(command)) {
+                    return runGenerate(args);
                 }
-            } else {
-                System.out.println("Converting JSON to Avro schema...");
-                System.out.println("  Input:  " + inputPath);
-                System.out.println("  Output: " + outputPath);
-                jsonConverter.convert(inputPath, outputPath);
+                if ("encode".equals(command)) {
+                    return runEncode(args);
+                }
             }
 
-            System.out.println("Conversion completed successfully!");
-            return 0;
+            return runConvert(args);
 
         } catch (IllegalArgumentException e) {
             System.err.println("Error: " + e.getMessage());
@@ -101,10 +75,137 @@ public class ConverterCli {
             return 1;
 
         } catch (Exception e) {
-            System.err.println("Error during conversion: " + e.getMessage());
+            System.err.println("Error during operation: " + e.getMessage());
             e.printStackTrace();
             return 1;
         }
+    }
+
+    /**
+     * Run the 'generate' sub-command: generate sample JSON from an Avro schema.
+     * Usage: generate <schema.avsc> <output.json> [SchemaName]
+     */
+    private int runGenerate(String[] args) throws Exception {
+        if (args.length < 3) {
+            throw new IllegalArgumentException(
+                    "Usage: generate <schema.avsc> <output.json> [SchemaName]");
+        }
+
+        String schemaPath = args[1];
+        String outputPath = args[2];
+        String schemaName = args.length >= 4 ? args[3] : null;
+
+        SchemaLoader loader = new SchemaLoader();
+        Schema schema = loader.load(schemaPath, schemaName);
+
+        System.out.println("Generating sample JSON from Avro schema...");
+        System.out.println("  Schema: " + schemaPath);
+        System.out.println("  Output: " + outputPath);
+        if (schemaName != null) {
+            System.out.println("  Record: " + schemaName);
+        }
+
+        AvroJsonGenerator generator = new AvroJsonGenerator();
+        generator.generateToFile(schema, outputPath);
+
+        System.out.println("JSON generation completed successfully!");
+        return 0;
+    }
+
+    /**
+     * Run the 'encode' sub-command: encode JSON to Avro binary.
+     * Usage: encode <schema.avsc> <input.json|--generate> <output.avro> [SchemaName]
+     */
+    private int runEncode(String[] args) throws Exception {
+        if (args.length < 4) {
+            throw new IllegalArgumentException(
+                    "Usage: encode <schema.avsc> <input.json|--generate> <output.avro> [SchemaName]");
+        }
+
+        String schemaPath = args[1];
+        String jsonInputOrFlag = args[2];
+        String outputPath = args[3];
+        String schemaName = args.length >= 5 ? args[4] : null;
+
+        SchemaLoader loader = new SchemaLoader();
+        Schema schema = loader.load(schemaPath, schemaName);
+
+        boolean autoGenerate = "--generate".equals(jsonInputOrFlag);
+
+        System.out.println("Encoding to Avro binary...");
+        System.out.println("  Schema: " + schemaPath);
+        System.out.println("  Output: " + outputPath);
+        if (schemaName != null) {
+            System.out.println("  Record: " + schemaName);
+        }
+
+        AvroBinaryEncoder encoder = new AvroBinaryEncoder();
+
+        if (autoGenerate) {
+            System.out.println("  Mode:   Auto-generate JSON then encode");
+            AvroJsonGenerator generator = new AvroJsonGenerator();
+            String json = generator.generate(schema);
+            System.out.println("  Generated JSON:");
+            System.out.println(json);
+            encoder.encode(schema, json, outputPath);
+        } else {
+            System.out.println("  Input:  " + jsonInputOrFlag);
+            encoder.encodeFromFile(schema, jsonInputOrFlag, outputPath);
+        }
+
+        System.out.println("Avro binary encoding completed successfully!");
+        return 0;
+    }
+
+    /**
+     * Run the original convert flow (JSON→Avro schema, OpenAPI→Avro schema).
+     */
+    private int runConvert(String[] args) throws Exception {
+        CliArguments cliArgs = CliArguments.parse(args);
+        cliArgs.validateInputExists();
+        cliArgs.validateOutputWritable();
+
+        String inputPath = cliArgs.getInputJsonPath();
+        String outputPath = cliArgs.getOutputAvscPath();
+
+        if (isOpenApiFile(inputPath)) {
+            System.out.println("Converting OpenAPI/Swagger to Avro schema...");
+            System.out.println("  Input:  " + inputPath);
+            System.out.println("  Output: " + outputPath);
+
+            // Check if unified mode is requested (4th argument)
+            boolean unifiedMode = args.length >= 4 && "--unified".equals(args[3]);
+
+            // If args contains a schema name (3rd argument), convert specific schema
+            if (args.length >= 3 && !args[2].startsWith("--")) {
+                String schemaName = args[2];
+                System.out.println("  Schema: " + schemaName);
+
+                if (unifiedMode) {
+                    System.out.println("  Mode:   Unified (all types in one file)");
+                    openApiConverter.convertUnified(inputPath, schemaName, outputPath);
+                } else {
+                    openApiConverter.convert(inputPath, schemaName, outputPath);
+                }
+            } else {
+                // Extract output directory and convert all schemas
+                int lastSlash = outputPath.lastIndexOf('/');
+                if (lastSlash == -1) {
+                    lastSlash = outputPath.lastIndexOf('\\');
+                }
+                String outputDir = lastSlash > 0 ? outputPath.substring(0, lastSlash) : ".";
+                System.out.println("  Generating all schemas to directory: " + outputDir);
+                openApiConverter.convertAll(inputPath, outputDir);
+            }
+        } else {
+            System.out.println("Converting JSON to Avro schema...");
+            System.out.println("  Input:  " + inputPath);
+            System.out.println("  Output: " + outputPath);
+            jsonConverter.convert(inputPath, outputPath);
+        }
+
+        System.out.println("Conversion completed successfully!");
+        return 0;
     }
 
     /**
@@ -146,29 +247,37 @@ public class ConverterCli {
      */
     private void printUsage() {
         System.err.println("Usage:");
-        System.err.println("  java -cp target/demo-1.0-SNAPSHOT.jar com.shanks.App <input-file> <output.avsc> [schema-name] [--unified]");
+        System.err.println("  java -jar target/json-to-avro-converter.jar <command> [options]");
         System.err.println();
-        System.err.println("Input file types:");
-        System.err.println("  - JSON data file: Will infer types from JSON data");
-        System.err.println("  - OpenAPI/Swagger file (.yaml, .yml, .json): Will convert schema definitions");
+        System.err.println("Commands:");
+        System.err.println("  generate  Generate sample JSON from an Avro schema");
+        System.err.println("  encode    Encode JSON data to Avro binary format");
+        System.err.println("  (none)    Convert JSON/OpenAPI to Avro schema (default)");
         System.err.println();
-        System.err.println("Options:");
-        System.err.println("  --unified: Generate a single file with all type definitions and references (OpenAPI only)");
+        System.err.println("Generate usage:");
+        System.err.println("  generate <schema.avsc> <output.json> [SchemaName]");
+        System.err.println();
+        System.err.println("Encode usage:");
+        System.err.println("  encode <schema.avsc> <input.json> <output.avro> [SchemaName]");
+        System.err.println("  encode <schema.avsc> --generate <output.avro> [SchemaName]");
+        System.err.println();
+        System.err.println("Convert usage (default):");
+        System.err.println("  <input-file> <output.avsc> [schema-name] [--unified]");
         System.err.println();
         System.err.println("Examples:");
+        System.err.println("  # Generate sample JSON from Avro schema");
+        System.err.println("  java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse");
+        System.err.println();
+        System.err.println("  # Encode JSON to Avro binary");
+        System.err.println("  java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse");
+        System.err.println();
+        System.err.println("  # Auto-generate JSON and encode to Avro binary");
+        System.err.println("  java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse");
+        System.err.println();
         System.err.println("  # Convert JSON data to Avro schema");
-        System.err.println("  java -cp target/demo-1.0-SNAPSHOT.jar com.shanks.App data.json schema.avsc");
+        System.err.println("  java -jar target/json-to-avro-converter.jar data.json schema.avsc");
         System.err.println();
-        System.err.println("  # Convert specific OpenAPI schema to Avro (separate files per type)");
-        System.err.println("  java -cp target/demo-1.0-SNAPSHOT.jar com.shanks.App api.yaml User.avsc User");
-        System.err.println();
-        System.err.println("  # Convert specific OpenAPI schema to unified Avro (all types in one file)");
-        System.err.println("  java -cp target/demo-1.0-SNAPSHOT.jar com.shanks.App api.yaml ResultResponse.avsc ResultResponse --unified");
-        System.err.println();
-        System.err.println("  # Convert all OpenAPI schemas (output is a directory)");
-        System.err.println("  java -cp target/demo-1.0-SNAPSHOT.jar com.shanks.App api.yaml output/schema.avsc");
-        System.err.println();
-        System.err.println("Or with Maven:");
-        System.err.println("  mvn exec:java -Dexec.mainClass=\"com.shanks.App\" -Dexec.args=\"api.yaml ResultResponse.avsc ResultResponse --unified\"");
+        System.err.println("  # Convert OpenAPI to unified Avro schema");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --unified");
     }
 }
