@@ -4,6 +4,7 @@ Outil Java complet pour Apache Avro :
 - 🔄 **OpenAPI/Swagger → Avro** : Conversion de specs API en schémas Avro
 - 🔄 **JSON → Avro** : Inférence de schémas depuis données JSON
 - ⚡ **Avro → Java** : Génération automatique de classes Java (Maven plugin)
+- 📦 **Avro → JSON → Binaire** : Génération de JSON exemple et encodage en trame binaire Avro
 
 ## 🚀 Quick Start
 
@@ -23,14 +24,23 @@ mvn clean package
 ### Utilisation
 
 ```bash
-# JSON → Avro
+# JSON → Avro Schema
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
 
-# OpenAPI → Avro (mode unifié recommandé)
+# OpenAPI → Avro Schema (mode unifié recommandé)
 java -jar target/json-to-avro-converter.jar api.yaml output.avsc User --unified
 
 # Avro → Java (automatique)
 mvn compile  # Les classes sont générées dans target/generated-sources/avro/
+
+# Avro Schema → JSON exemple
+java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse
+
+# JSON → Trame binaire Avro
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse
+
+# Génération JSON + encodage binaire en une commande
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse
 ```
 
 ## 📖 Documentation Détaillée
@@ -77,6 +87,35 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --unified
 ```bash
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
 ```
+
+### Avro Schema → JSON + Binaire
+
+**Deux sous-commandes** pour générer du JSON et des trames binaires Avro à partir de schémas :
+
+**`generate`** — Génère un JSON exemple (format Avro JSON encoding) à partir d'un schéma `.avsc` :
+```bash
+# Génère output.json avec des valeurs par défaut cohérentes
+java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse
+```
+
+**`encode`** — Encode du JSON en fichier binaire `.avro` (container format avec header + schema embarqué) :
+```bash
+# Depuis un fichier JSON existant
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse
+
+# Auto-génération + encodage en une commande
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse
+```
+
+**Types supportés pour la génération JSON :**
+- `string` → `"example_string"`, UUID → UUID aléatoire
+- `int`/`long`/`float`/`double` → `0`
+- `boolean` → `false`
+- `enum` → premier symbole
+- `array` → `[]`
+- `record` → objet récursif
+- `timestamp-millis` → timestamp courant
+- unions `["null", T]` → valeur non-null wrappée (format Avro JSON encoding)
 
 ### Avro → Java (Maven Plugin)
 
@@ -151,6 +190,7 @@ Le plugin est déjà configuré dans `pom.xml` avec:
 src/main/java/com/shanks/
 ├── cli/              # CLI et parsing arguments
 ├── converter/        # Convertisseurs (JSON, OpenAPI)
+├── serializer/       # Génération JSON + encodage binaire Avro
 ├── parser/           # Parser OpenAPI
 ├── mapper/           # Mapping types
 ├── model/            # Modèles de données
@@ -165,7 +205,7 @@ target/generated-sources/avro/  # Classes Java générées
 ## 🧪 Tests
 
 ```bash
-mvn test  # 53 tests unitaires
+mvn test  # 69 tests unitaires
 ```
 
 ## 🔧 Dépendances
