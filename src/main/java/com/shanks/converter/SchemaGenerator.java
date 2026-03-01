@@ -21,7 +21,7 @@ public class SchemaGenerator {
     /**
      * Generate an Avro schema from the root type information.
      *
-     * @param rootType the root type information
+     * @param rootType   the root type information
      * @param recordName the name for the root record
      * @return the generated Avro schema
      */
@@ -136,7 +136,7 @@ public class SchemaGenerator {
                     .build();
         }
 
-        Schema itemSchema = generateTypeSchema(itemType, name + "Item", namespace);
+        Schema itemSchema = generateTypeSchema(itemType, name, namespace);
         return Schema.createArray(itemSchema);
     }
 
@@ -149,18 +149,14 @@ public class SchemaGenerator {
             symbols = Collections.singletonList("UNKNOWN");
         }
 
-        String enumName = typeInfo.getRecordName() != null ?
-                typeInfo.getRecordName() :
-                sanitizeName(name);
+        String enumName = typeInfo.getRecordName() != null ? typeInfo.getRecordName() : sanitizeName(name);
 
         String cacheKey = namespace + "." + enumName;
         if (enumSchemaCache.containsKey(cacheKey)) {
             return enumSchemaCache.get(cacheKey);
         }
 
-        // Extract doc from typeInfo
-        String enumDoc = typeInfo.getDoc();
-        Schema enumSchema = Schema.createEnum(enumName, enumDoc, namespace, symbols);
+        Schema enumSchema = Schema.createEnum(enumName, null, namespace, symbols);
         enumSchemaCache.put(cacheKey, enumSchema);
 
         return enumSchema;
@@ -170,9 +166,7 @@ public class SchemaGenerator {
      * Generate a record schema.
      */
     private Schema generateRecordSchema(AvroTypeInfo typeInfo, String name, String namespace) {
-        String recordName = typeInfo.getRecordName() != null ?
-                typeInfo.getRecordName() :
-                sanitizeName(name);
+        String recordName = typeInfo.getRecordName() != null ? typeInfo.getRecordName() : sanitizeName(name);
 
         List<Schema.Field> fields = new ArrayList<>();
 
@@ -186,22 +180,18 @@ public class SchemaGenerator {
                 // Ajouter default: null pour les champs nullable (union avec null en premier)
                 Object defaultValue = null;
                 if (fieldType.getAvroType() == Schema.Type.UNION &&
-                    fieldType.getUnionTypes() != null &&
-                    !fieldType.getUnionTypes().isEmpty() &&
-                    fieldType.getUnionTypes().get(0).getAvroType() == Schema.Type.NULL) {
+                        fieldType.getUnionTypes() != null &&
+                        !fieldType.getUnionTypes().isEmpty() &&
+                        fieldType.getUnionTypes().get(0).getAvroType() == Schema.Type.NULL) {
                     defaultValue = Schema.Field.NULL_VALUE;
                 }
 
-                // Extract doc from fieldType
-                String fieldDoc = fieldType.getDoc();
-                Schema.Field field = new Schema.Field(fieldName, fieldSchema, fieldDoc, defaultValue);
+                Schema.Field field = new Schema.Field(fieldName, fieldSchema, null, defaultValue);
                 fields.add(field);
             }
         }
 
-        // Extract doc from typeInfo
-        String recordDoc = typeInfo.getDoc();
-        return Schema.createRecord(recordName, recordDoc, namespace, false, fields);
+        return Schema.createRecord(recordName, null, namespace, false, fields);
     }
 
     /**
@@ -238,7 +228,8 @@ public class SchemaGenerator {
     }
 
     /**
-     * Convert the schema to pretty-printed JSON with custom formatting for named types.
+     * Convert the schema to pretty-printed JSON with custom formatting for named
+     * types.
      *
      * @param schema the Avro schema
      * @return the pretty-printed JSON string
@@ -274,24 +265,28 @@ public class SchemaGenerator {
             java.util.List<Schema.Field> fields = schema.getFields();
             for (int i = 0; i < fields.size(); i++) {
                 Schema.Field field = fields.get(i);
-                AvroTypeInfo fieldTypeInfo = typeInfo.getFields() != null ?
-                    typeInfo.getFields().get(field.name()) : null;
+                AvroTypeInfo fieldTypeInfo = typeInfo.getFields() != null ? typeInfo.getFields().get(field.name())
+                        : null;
 
-                if (i > 0) json.append(", ");
+                if (i > 0)
+                    json.append(", ");
                 json.append("{\n");
                 json.append(indentStr1).append("  \"name\" : \"").append(field.name()).append("\",\n");
                 json.append(indentStr1).append("  \"type\" : ");
 
                 if (fieldTypeInfo != null && fieldTypeInfo.getRecordName() != null &&
-                    fieldTypeInfo.getLogicalType() != null) {
+                        fieldTypeInfo.getLogicalType() != null) {
                     // Type avec nom personnalisé (UUID, etc.)
                     json.append("{\n");
-                    json.append(indentStr1).append("    \"name\" : \"").append(fieldTypeInfo.getRecordName()).append("\",\n");
+                    json.append(indentStr1).append("    \"name\" : \"").append(fieldTypeInfo.getRecordName())
+                            .append("\",\n");
                     json.append(indentStr1).append("    \"type\" : \"string\",\n");
-                    json.append(indentStr1).append("    \"logicalType\" : \"").append(fieldTypeInfo.getLogicalType()).append("\"");
+                    json.append(indentStr1).append("    \"logicalType\" : \"").append(fieldTypeInfo.getLogicalType())
+                            .append("\"");
                     if (fieldTypeInfo.getPattern() != null && !fieldTypeInfo.getPattern().isEmpty()) {
                         json.append(",\n");
-                        json.append(indentStr1).append("    \"pattern\" : \"").append(fieldTypeInfo.getPattern()).append("\"");
+                        json.append(indentStr1).append("    \"pattern\" : \"").append(fieldTypeInfo.getPattern())
+                                .append("\"");
                     }
                     json.append("\n");
                     json.append(indentStr1).append("  }");
