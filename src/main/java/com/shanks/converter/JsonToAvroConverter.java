@@ -109,6 +109,63 @@ public class JsonToAvroConverter {
         try (FileWriter writer = new FileWriter(outputFile)) {
             writer.write(schemaJson);
         }
+
+        // Generate minified one-line version (.min.avsc)
+        String minPath = buildMinPath(outputPath);
+        String minified = minifyJson(schemaJson);
+        try (FileWriter writer = new FileWriter(new File(minPath))) {
+            writer.write(minified);
+        }
+    }
+
+    /**
+     * Build the .min.avsc path from the original output path.
+     */
+    private String buildMinPath(String outputPath) {
+        int dotIndex = outputPath.lastIndexOf('.');
+        if (dotIndex > 0) {
+            return outputPath.substring(0, dotIndex) + ".min" + outputPath.substring(dotIndex);
+        }
+        return outputPath + ".min";
+    }
+
+    /**
+     * Minify a JSON string by removing unnecessary whitespace.
+     */
+    private String minifyJson(String json) {
+        StringBuilder result = new StringBuilder();
+        boolean inString = false;
+        boolean escape = false;
+
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+
+            if (escape) {
+                result.append(c);
+                escape = false;
+                continue;
+            }
+
+            if (c == '\\' && inString) {
+                result.append(c);
+                escape = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                result.append(c);
+                continue;
+            }
+
+            if (inString) {
+                result.append(c);
+            } else if (!Character.isWhitespace(c)) {
+                result.append(c);
+            }
+        }
+
+        return result.toString();
     }
 
     /**

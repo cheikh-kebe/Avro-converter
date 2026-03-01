@@ -23,7 +23,7 @@ public class OpenApiToAvroConverter {
 
     private final OpenApiParser parser;
     private final SchemaGenerator schemaGenerator;
-    private final UnifiedSchemaGenerator unifiedSchemaGenerator;
+    private final RegistrySchemaGenerator registrySchemaGenerator;
 
     /**
      * Constructor with default components.
@@ -31,7 +31,7 @@ public class OpenApiToAvroConverter {
     public OpenApiToAvroConverter() {
         this.parser = new OpenApiParser();
         this.schemaGenerator = new SchemaGenerator();
-        this.unifiedSchemaGenerator = new UnifiedSchemaGenerator();
+        this.registrySchemaGenerator = new RegistrySchemaGenerator();
     }
 
     /**
@@ -43,7 +43,7 @@ public class OpenApiToAvroConverter {
     public OpenApiToAvroConverter(OpenApiParser parser, SchemaGenerator schemaGenerator) {
         this.parser = parser;
         this.schemaGenerator = schemaGenerator;
-        this.unifiedSchemaGenerator = new UnifiedSchemaGenerator();
+        this.registrySchemaGenerator = new RegistrySchemaGenerator();
     }
 
     /**
@@ -121,16 +121,15 @@ public class OpenApiToAvroConverter {
     }
 
     /**
-     * Convert a specific schema from an OpenAPI file to a unified Avro schema file.
-     * All dependent types (enums, records) are defined in the same file and
-     * referenced by name.
+     * Convert a specific schema from an OpenAPI file to an IBM Schema Registry compatible Avro schema file.
+     * Produces a single self-contained JSON object with all nested types embedded inline.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
      * @param schemaName       name of the schema in components/schemas to convert
      * @param outputAvscPath   path to output AVSC file
      * @throws IOException if file operations fail
      */
-    public void convertUnified(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
+    public void convertRegistry(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
         OpenAPI openAPI = parser.parse(inputOpenApiPath);
 
         if (openAPI.getComponents() == null ||
@@ -147,7 +146,7 @@ public class OpenApiToAvroConverter {
         OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
         AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
 
-        String schemaJson = unifiedSchemaGenerator.generateUnifiedSchema(typeInfo, schemaName);
+        String schemaJson = registrySchemaGenerator.generateRegistrySchema(typeInfo, schemaName);
         writeSchemaToFile(schemaJson, outputAvscPath);
     }
 
@@ -167,6 +166,63 @@ public class OpenApiToAvroConverter {
         try (FileWriter writer = new FileWriter(outputFile)) {
             writer.write(schemaJson);
         }
+
+        // Generate minified one-line version (.min.avsc)
+        String minPath = buildMinPath(outputPath);
+        String minified = minifyJson(schemaJson);
+        try (FileWriter writer = new FileWriter(new File(minPath))) {
+            writer.write(minified);
+        }
+    }
+
+    /**
+     * Build the .min.avsc path from the original output path.
+     */
+    private String buildMinPath(String outputPath) {
+        int dotIndex = outputPath.lastIndexOf('.');
+        if (dotIndex > 0) {
+            return outputPath.substring(0, dotIndex) + ".min" + outputPath.substring(dotIndex);
+        }
+        return outputPath + ".min";
+    }
+
+    /**
+     * Minify a JSON string by removing unnecessary whitespace.
+     */
+    private String minifyJson(String json) {
+        StringBuilder result = new StringBuilder();
+        boolean inString = false;
+        boolean escape = false;
+
+        for (int i = 0; i < json.length(); i++) {
+            char c = json.charAt(i);
+
+            if (escape) {
+                result.append(c);
+                escape = false;
+                continue;
+            }
+
+            if (c == '\\' && inString) {
+                result.append(c);
+                escape = true;
+                continue;
+            }
+
+            if (c == '"') {
+                inString = !inString;
+                result.append(c);
+                continue;
+            }
+
+            if (inString) {
+                result.append(c);
+            } else if (!Character.isWhitespace(c)) {
+                result.append(c);
+            }
+        }
+
+        return result.toString();
     }
 
     /**

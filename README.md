@@ -5,6 +5,7 @@ Outil Java complet pour Apache Avro :
 - 🔄 **JSON → Avro** : Inférence de schémas depuis données JSON
 - ⚡ **Avro → Java** : Génération automatique de classes Java (Maven plugin)
 - 📦 **Avro → JSON → Binaire** : Génération de JSON exemple et encodage en trame binaire Avro
+- 📄 **Minification** : Génération automatique d'une version one-line (`.min.avsc`) pour chaque schéma
 
 ## 🚀 Quick Start
 
@@ -27,8 +28,8 @@ mvn clean package
 # JSON → Avro Schema
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
 
-# OpenAPI → Avro Schema (mode unifié recommandé)
-java -jar target/json-to-avro-converter.jar api.yaml output.avsc User --unified
+# OpenAPI → Avro Schema (mode registry pour IBM/Confluent Schema Registry)
+java -jar target/json-to-avro-converter.jar api.yaml output.avsc User --registry
 
 # Avro → Java (automatique)
 mvn compile  # Les classes sont générées dans target/generated-sources/avro/
@@ -52,16 +53,17 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 - Conversion directe des types et enums
 - Extraction automatique des patterns regex
 - Résolution des `$ref`
-- **Mode unifié** (`--unified`) : Un seul fichier avec références au lieu de duplication
+- **Mode registry** (`--registry`) : Schéma unique auto-contenu compatible IBM/Confluent Schema Registry
+- Génération automatique d'un fichier `.min.avsc` (JSON one-line) à côté du `.avsc`
 
 **Exemples:**
 
 ```bash
-# Mode standard (fichiers séparés)
+# Mode standard (fichiers séparés, types inline)
 java -jar target/json-to-avro-converter.jar api.yaml output-dir/
 
-# Mode unifié (recommandé - évite duplication)
-java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --unified
+# Mode registry (schéma unique auto-contenu pour Schema Registry)
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry
 ```
 
 **Mapping des types:**
@@ -86,6 +88,7 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --unified
 
 ```bash
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
+# → Génère schema.avsc (formaté) + schema.min.avsc (one-line)
 ```
 
 ### Avro Schema → JSON + Binaire
@@ -205,7 +208,7 @@ target/generated-sources/avro/  # Classes Java générées
 ## 🧪 Tests
 
 ```bash
-mvn test  # 69 tests unitaires
+mvn test  # 59 tests unitaires
 ```
 
 ## 🔧 Dépendances
@@ -217,7 +220,7 @@ mvn test  # 69 tests unitaires
 
 ## 📝 Exemples Rapides
 
-**Mode Unifié vs Standard (OpenAPI):**
+**Mode Registry vs Standard (OpenAPI):**
 
 ```yaml
 # api.yaml
@@ -234,11 +237,11 @@ components:
 ```
 
 ```bash
-# Mode unifié (1 fichier, références)
-java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --unified
-# → Enum défini une fois, référencé par "com.shanks.generated.CardTypeEnum"
+# Mode registry (1 fichier auto-contenu, types imbriqués inline puis référencés par nom)
+java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --registry
+# → Enum défini inline à la première occurrence, référencé par nom ensuite
 
-# Mode standard (duplication possible)
+# Mode standard (types inline dans le record)
 java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard
 # → Enum inline dans le record
 ```

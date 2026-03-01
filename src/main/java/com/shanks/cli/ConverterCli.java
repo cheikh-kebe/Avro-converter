@@ -173,17 +173,17 @@ public class ConverterCli {
             System.out.println("  Input:  " + inputPath);
             System.out.println("  Output: " + outputPath);
 
-            // Check if unified mode is requested (4th argument)
-            boolean unifiedMode = args.length >= 4 && "--unified".equals(args[3]);
+            // Check mode flags (4th argument)
+            boolean registryMode = args.length >= 4 && "--registry".equals(args[3]);
 
             // If args contains a schema name (3rd argument), convert specific schema
             if (args.length >= 3 && !args[2].startsWith("--")) {
                 String schemaName = args[2];
                 System.out.println("  Schema: " + schemaName);
 
-                if (unifiedMode) {
-                    System.out.println("  Mode:   Unified (all types in one file)");
-                    openApiConverter.convertUnified(inputPath, schemaName, outputPath);
+                if (registryMode) {
+                    System.out.println("  Mode:   Registry (single self-contained schema for IBM/Confluent Schema Registry)");
+                    openApiConverter.convertRegistry(inputPath, schemaName, outputPath);
                 } else {
                     openApiConverter.convert(inputPath, schemaName, outputPath);
                 }
@@ -277,7 +277,7 @@ public class ConverterCli {
         System.err.println("  # Convert JSON data to Avro schema");
         System.err.println("  java -jar target/json-to-avro-converter.jar data.json schema.avsc");
         System.err.println();
-        System.err.println("  # Convert OpenAPI to unified Avro schema");
-        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --unified");
+        System.err.println("  # Convert OpenAPI to registry-compatible Avro schema (IBM / Confluent Schema Registry)");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry");
     }
 }

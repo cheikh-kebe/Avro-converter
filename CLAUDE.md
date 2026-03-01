@@ -17,8 +17,8 @@ mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml output-dir
 # Run application with OpenAPI input (specific schema - standard mode)
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc User"
 
-# Run application with OpenAPI input (unified mode - recommended)
-mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --unified"
+# Run application with OpenAPI input (registry mode - for IBM/Confluent Schema Registry)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --registry"
 
 # Run tests
 mvn test
@@ -29,8 +29,8 @@ mvn test -Dtest=OpenApiParserTest
 # Run JAR directly (after build)
 java -jar target/json-to-avro-converter.jar data.json schema.avsc
 
-# Run JAR with unified mode
-java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --unified
+# Run JAR with registry mode (IBM Schema Registry / Confluent Schema Registry)
+java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry
 
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
@@ -81,11 +81,10 @@ This is a converter tool that supports:
 ### Conversion Modes (OpenAPI only)
 
 - **Standard Mode** (default): Generates one file per schema, types may be duplicated
-- **Unified Mode** (`--unified`): Generates a single file with all types defined once and referenced by name
-  - Recommended for most use cases
-  - Avoids duplication
-  - Format: JSON array `[enum1, enum2, record1, record2, ...]`
-  - References types by name: `"com.shanks.generated.CardTypeEnum"`
+- **Registry Mode** (`--registry`): Generates a single self-contained JSON object compatible with IBM Schema Registry and Confluent Schema Registry
+  - Recommended for schema registry use cases
+  - Single top-level `record` type (not a JSON array)
+  - Nested types embedded inline at first occurrence, referenced by name on subsequent uses
 
 ### Java Code Generation (Avro → Java) with Maven Plugin
 
@@ -206,7 +205,7 @@ mvn clean install
 
 The converter automatically extracts and preserves `pattern` constraints from OpenAPI/Swagger string fields:
 - When a string field has a `pattern` attribute in the OpenAPI spec, it's included in the Avro schema
-- Patterns are preserved in both standard and unified modes
+- Patterns are preserved in both standard and registry modes
 - Example OpenAPI field:
   ```yaml
   phoneNumber:
@@ -229,7 +228,7 @@ The project follows SOLID principles with separate packages for:
   - `JsonToAvroConverter`: JSON → Avro schema conversion
   - `OpenApiToAvroConverter`: OpenAPI → Avro schema conversion
   - `SchemaGenerator`: Standard mode (inline types)
-  - `UnifiedSchemaGenerator`: Unified mode (type references)
+  - `RegistrySchemaGenerator`: Registry mode (single self-contained schema for IBM/Confluent Schema Registry)
 - `cli/`: Command-line interface
   - `ConverterCli`: Main CLI orchestrator
   - `CliArguments`: Arguments parser for schema generation
