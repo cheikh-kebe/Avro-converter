@@ -137,7 +137,7 @@ public class TypeInferenceEngine {
             if (element.isNull()) {
                 hasNull = true;
             } else {
-                AvroTypeInfo elementType = inferType(element, fieldName + "Item");
+                AvroTypeInfo elementType = inferType(element, fieldName);
                 if (!containsType(types, elementType)) {
                     types.add(elementType);
                 }
