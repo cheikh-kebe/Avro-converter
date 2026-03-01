@@ -158,9 +158,7 @@ public class SchemaGenerator {
             return enumSchemaCache.get(cacheKey);
         }
 
-        // Extract doc from typeInfo
-        String enumDoc = typeInfo.getDoc();
-        Schema enumSchema = Schema.createEnum(enumName, enumDoc, namespace, symbols);
+        Schema enumSchema = Schema.createEnum(enumName, null, namespace, symbols);
         enumSchemaCache.put(cacheKey, enumSchema);
 
         return enumSchema;
@@ -192,16 +190,12 @@ public class SchemaGenerator {
                     defaultValue = Schema.Field.NULL_VALUE;
                 }
 
-                // Extract doc from fieldType
-                String fieldDoc = fieldType.getDoc();
-                Schema.Field field = new Schema.Field(fieldName, fieldSchema, fieldDoc, defaultValue);
+                Schema.Field field = new Schema.Field(fieldName, fieldSchema, null, defaultValue);
                 fields.add(field);
             }
         }
 
-        // Extract doc from typeInfo
-        String recordDoc = typeInfo.getDoc();
-        return Schema.createRecord(recordName, recordDoc, namespace, false, fields);
+        return Schema.createRecord(recordName, null, namespace, false, fields);
     }
 
     /**

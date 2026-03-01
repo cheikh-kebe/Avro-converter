@@ -24,7 +24,6 @@ public class AvroTypeInfo {
     private final AvroTypeInfo arrayItemType;
     private final String recordName;
     private final String pattern;
-    private final String doc;
 
     private AvroTypeInfo(Builder builder) {
         this.avroType = builder.avroType;
@@ -36,7 +35,6 @@ public class AvroTypeInfo {
         this.arrayItemType = builder.arrayItemType;
         this.recordName = builder.recordName;
         this.pattern = builder.pattern;
-        this.doc = builder.doc;
     }
 
     public Schema.Type getAvroType() {
@@ -75,10 +73,6 @@ public class AvroTypeInfo {
         return pattern;
     }
 
-    public String getDoc() {
-        return doc;
-    }
-
     /**
      * Builder for AvroTypeInfo following the Builder pattern.
      */
@@ -92,7 +86,6 @@ public class AvroTypeInfo {
         private AvroTypeInfo arrayItemType;
         private String recordName;
         private String pattern;
-        private String doc;
 
         public Builder avroType(Schema.Type avroType) {
             this.avroType = avroType;
@@ -153,11 +146,6 @@ public class AvroTypeInfo {
 
         public Builder pattern(String pattern) {
             this.pattern = pattern;
-            return this;
-        }
-
-        public Builder doc(String doc) {
-            this.doc = doc;
             return this;
         }
 
