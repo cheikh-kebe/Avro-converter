@@ -19,6 +19,16 @@ public class RegistrySchemaGenerator {
     private static final String DEFAULT_NAMESPACE = "com.shanks.generated";
 
     private final Set<String> definedTypes = new LinkedHashSet<>();
+    private boolean includeDoc = false;
+
+    /**
+     * Set whether to include doc fields in generated schemas.
+     *
+     * @param includeDoc true to include doc fields from OpenAPI descriptions
+     */
+    public void setIncludeDoc(boolean includeDoc) {
+        this.includeDoc = includeDoc;
+    }
 
     /**
      * Generate an IBM Schema Registry compatible Avro schema.
@@ -53,6 +63,10 @@ public class RegistrySchemaGenerator {
         sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
         sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
 
+        if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+            sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
+        }
+
         sb.append(",\n").append(i1).append("\"fields\": [\n");
 
         if (typeInfo.getFields() != null) {
@@ -63,6 +77,10 @@ public class RegistrySchemaGenerator {
 
                 sb.append(fi).append("{\n");
                 sb.append(fc).append("\"name\": \"").append(field.getKey()).append("\"");
+
+                if (includeDoc && fieldType.getDoc() != null && !fieldType.getDoc().isEmpty()) {
+                    sb.append(",\n").append(fc).append("\"doc\": \"").append(esc(fieldType.getDoc())).append("\"");
+                }
 
                 sb.append(",\n").append(fc).append("\"type\": ");
                 sb.append(fieldType(fieldType, namespace, keyIndent + 3));
@@ -94,6 +112,10 @@ public class RegistrySchemaGenerator {
         sb.append(i1).append("\"type\": \"enum\",\n");
         sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
         sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+
+        if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+            sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
+        }
 
         sb.append(",\n").append(i1).append("\"symbols\": [");
 
@@ -253,4 +275,13 @@ public class RegistrySchemaGenerator {
         return "  ".repeat(Math.max(0, level));
     }
 
+    /** Escapes special characters for use inside a JSON string. */
+    private static String esc(String text) {
+        if (text == null) return "";
+        return text.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
+    }
 }

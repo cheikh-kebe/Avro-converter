@@ -173,8 +173,14 @@ public class ConverterCli {
             System.out.println("  Input:  " + inputPath);
             System.out.println("  Output: " + outputPath);
 
-            // Check mode flags (4th argument)
-            boolean registryMode = args.length >= 4 && "--registry".equals(args[3]);
+            // Check mode flags (scan all arguments for --registry and --doc)
+            boolean registryMode = hasFlag(args, "--registry");
+            boolean docMode = hasFlag(args, "--doc");
+
+            if (docMode) {
+                System.out.println("  Doc:    Enabled (include descriptions as doc fields)");
+                openApiConverter.setIncludeDoc(true);
+            }
 
             // If args contains a schema name (3rd argument), convert specific schema
             if (args.length >= 3 && !args[2].startsWith("--")) {
@@ -206,6 +212,18 @@ public class ConverterCli {
 
         System.out.println("Conversion completed successfully!");
         return 0;
+    }
+
+    /**
+     * Check if a flag is present in the arguments.
+     */
+    private boolean hasFlag(String[] args, String flag) {
+        for (String arg : args) {
+            if (flag.equals(arg)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -262,7 +280,7 @@ public class ConverterCli {
         System.err.println("  encode <schema.avsc> --generate <output.avro> [SchemaName]");
         System.err.println();
         System.err.println("Convert usage (default):");
-        System.err.println("  <input-file> <output.avsc> [schema-name] [--unified]");
+        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc]");
         System.err.println();
         System.err.println("Examples:");
         System.err.println("  # Generate sample JSON from Avro schema");
@@ -279,5 +297,11 @@ public class ConverterCli {
         System.err.println();
         System.err.println("  # Convert OpenAPI to registry-compatible Avro schema (IBM / Confluent Schema Registry)");
         System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry");
+        System.err.println();
+        System.err.println("  # Convert OpenAPI with doc fields (include descriptions from OpenAPI spec)");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --doc");
+        System.err.println();
+        System.err.println("  # Registry mode with doc fields");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry --doc");
     }
 }

@@ -24,6 +24,7 @@ public class OpenApiToAvroConverter {
     private final OpenApiParser parser;
     private final SchemaGenerator schemaGenerator;
     private final RegistrySchemaGenerator registrySchemaGenerator;
+    private boolean includeDoc = false;
 
     /**
      * Constructor with default components.
@@ -44,6 +45,17 @@ public class OpenApiToAvroConverter {
         this.parser = parser;
         this.schemaGenerator = schemaGenerator;
         this.registrySchemaGenerator = new RegistrySchemaGenerator();
+    }
+
+    /**
+     * Set whether to include doc fields in generated schemas.
+     *
+     * @param includeDoc true to include doc fields from OpenAPI descriptions
+     */
+    public void setIncludeDoc(boolean includeDoc) {
+        this.includeDoc = includeDoc;
+        this.schemaGenerator.setIncludeDoc(includeDoc);
+        this.registrySchemaGenerator.setIncludeDoc(includeDoc);
     }
 
     /**

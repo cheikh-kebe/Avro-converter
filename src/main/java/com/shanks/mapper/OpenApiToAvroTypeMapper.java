@@ -55,6 +55,7 @@ public class OpenApiToAvroTypeMapper {
 
         String type = schema.getType();
         String format = schema.getFormat();
+        String description = schema.getDescription();
 
         if (type == null) {
             return AvroTypeInfo.builder()
@@ -64,14 +65,17 @@ public class OpenApiToAvroTypeMapper {
 
         switch (type.toLowerCase()) {
             case "string":
-                return mapStringType(format, schema.getPattern());
+                return mapStringType(format, schema.getPattern(), description);
             case "integer":
-                return mapIntegerType(format);
+                return mapIntegerType(format, description);
             case "number":
-                return mapNumberType(format);
+                return mapNumberType(format, description);
             case "boolean":
                 AvroTypeInfo.Builder boolBuilder = AvroTypeInfo.builder()
                         .avroType(Type.BOOLEAN);
+                if (description != null && !description.isEmpty()) {
+                    boolBuilder.doc(description);
+                }
                 return boolBuilder.build();
             case "array":
                 return mapArrayType((ArraySchema) schema, fieldName);
@@ -85,9 +89,9 @@ public class OpenApiToAvroTypeMapper {
     }
 
     /**
-     * Map string type with format and pattern.
+     * Map string type with format, pattern and description.
      */
-    private AvroTypeInfo mapStringType(String format, String pattern) {
+    private AvroTypeInfo mapStringType(String format, String pattern, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.STRING);
 
@@ -100,6 +104,9 @@ public class OpenApiToAvroTypeMapper {
                 case "date-time":
                     builder.avroType(Type.LONG)
                             .logicalType("timestamp-millis");
+                    if (description != null && !description.isEmpty()) {
+                        builder.doc(description);
+                    }
                     return builder.build();
             }
         }
@@ -108,13 +115,17 @@ public class OpenApiToAvroTypeMapper {
             builder.pattern(pattern);
         }
 
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
+
         return builder.build();
     }
 
     /**
-     * Map integer type with format.
+     * Map integer type with format and description.
      */
-    private AvroTypeInfo mapIntegerType(String format) {
+    private AvroTypeInfo mapIntegerType(String format, String description) {
         AvroTypeInfo.Builder builder;
         if ("int64".equals(format) || "long".equals(format)) {
             builder = AvroTypeInfo.builder()
@@ -124,13 +135,17 @@ public class OpenApiToAvroTypeMapper {
                     .avroType(Type.INT);
         }
 
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
+
         return builder.build();
     }
 
     /**
-     * Map number type with format.
+     * Map number type with format and description.
      */
-    private AvroTypeInfo mapNumberType(String format) {
+    private AvroTypeInfo mapNumberType(String format, String description) {
         AvroTypeInfo.Builder builder;
         if ("double".equals(format)) {
             builder = AvroTypeInfo.builder()
@@ -138,6 +153,10 @@ public class OpenApiToAvroTypeMapper {
         } else {
             builder = AvroTypeInfo.builder()
                     .avroType(Type.FLOAT);
+        }
+
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
         }
 
         return builder.build();
@@ -157,6 +176,11 @@ public class OpenApiToAvroTypeMapper {
                 .enumSymbols(symbols)
                 .recordName(capitalize(fieldName));
 
+        String description = schema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
+
         return builder.build();
     }
 
@@ -170,6 +194,11 @@ public class OpenApiToAvroTypeMapper {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.ARRAY)
                 .arrayItemType(itemType);
+
+        String description = arraySchema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
 
         return builder.build();
     }
@@ -205,6 +234,11 @@ public class OpenApiToAvroTypeMapper {
                 .avroType(Type.RECORD)
                 .recordName(capitalize(fieldName))
                 .fields(fields);
+
+        String description = schema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
 
         return builder.build();
     }
@@ -254,6 +288,10 @@ public class OpenApiToAvroTypeMapper {
                 .avroType(Type.UNION)
                 .addUnionType(AvroTypeInfo.builder().avroType(Type.NULL).build())
                 .addUnionType(typeInfo);
+
+        if (typeInfo.getDoc() != null) {
+            builder.doc(typeInfo.getDoc());
+        }
 
         return builder.build();
     }

@@ -16,7 +16,17 @@ public class SchemaGenerator {
 
     private static final String DEFAULT_NAMESPACE = "com.shanks.generated";
     private final Map<String, Schema> enumSchemaCache = new HashMap<>();
+    private boolean includeDoc = false;
     private int enumCounter = 0;
+
+    /**
+     * Set whether to include doc fields in generated schemas.
+     *
+     * @param includeDoc true to include doc fields from OpenAPI descriptions
+     */
+    public void setIncludeDoc(boolean includeDoc) {
+        this.includeDoc = includeDoc;
+    }
 
     /**
      * Generate an Avro schema from the root type information.
@@ -156,7 +166,8 @@ public class SchemaGenerator {
             return enumSchemaCache.get(cacheKey);
         }
 
-        Schema enumSchema = Schema.createEnum(enumName, null, namespace, symbols);
+        String enumDoc = includeDoc ? typeInfo.getDoc() : null;
+        Schema enumSchema = Schema.createEnum(enumName, enumDoc, namespace, symbols);
         enumSchemaCache.put(cacheKey, enumSchema);
 
         return enumSchema;
@@ -186,12 +197,14 @@ public class SchemaGenerator {
                     defaultValue = Schema.Field.NULL_VALUE;
                 }
 
-                Schema.Field field = new Schema.Field(fieldName, fieldSchema, null, defaultValue);
+                String fieldDoc = includeDoc ? fieldType.getDoc() : null;
+                Schema.Field field = new Schema.Field(fieldName, fieldSchema, fieldDoc, defaultValue);
                 fields.add(field);
             }
         }
 
-        return Schema.createRecord(recordName, null, namespace, false, fields);
+        String recordDoc = includeDoc ? typeInfo.getDoc() : null;
+        return Schema.createRecord(recordName, recordDoc, namespace, false, fields);
     }
 
     /**
