@@ -39,9 +39,10 @@ public class RegistrySchemaGenerator {
      */
     public String generateRegistrySchema(AvroTypeInfo rootType, String rootName) {
         definedTypes.clear();
+        String namespace = DEFAULT_NAMESPACE + "." + rootName.toLowerCase();
         // Pre-register the root to prevent infinite recursion on self-referencing types
-        definedTypes.add(DEFAULT_NAMESPACE + "." + rootName);
-        return inlineRecord(rootType, rootName, DEFAULT_NAMESPACE, 0);
+        definedTypes.add(namespace + "." + rootName);
+        return inlineRecord(rootType, rootName, namespace, 0, true);
     }
 
     // -------------------------------------------------------------------------
@@ -53,15 +54,18 @@ public class RegistrySchemaGenerator {
      * Opening '{' has no leading indent (caller places it after "type": or at start of output).
      * Content is at indent(keyIndent + 1), closing '}' at indent(keyIndent).
      */
-    private String inlineRecord(AvroTypeInfo typeInfo, String name, String namespace, int keyIndent) {
+    private String inlineRecord(AvroTypeInfo typeInfo, String name, String namespace, int keyIndent, boolean isRoot) {
         String i1 = ind(keyIndent + 1);
         String fi = ind(keyIndent + 2); // field object {
         String fc = ind(keyIndent + 3); // field content (name, type, default)
 
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"record\",\n");
-        sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
-        sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+        sb.append(i1).append("\"name\": \"").append(name).append("\"");
+
+        if (isRoot) {
+            sb.append(",\n").append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+        }
 
         if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
             sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
@@ -110,8 +114,7 @@ public class RegistrySchemaGenerator {
 
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"enum\",\n");
-        sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
-        sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+        sb.append(i1).append("\"name\": \"").append(name).append("\"");
 
         if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
             sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
@@ -181,7 +184,7 @@ public class RegistrySchemaGenerator {
                     return "\"" + fullName + "\"";
                 }
                 definedTypes.add(fullName);
-                return inlineRecord(typeInfo, name, namespace, keyIndent);
+                return inlineRecord(typeInfo, name, namespace, keyIndent, false);
             }
 
             case ARRAY: {

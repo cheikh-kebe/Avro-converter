@@ -39,11 +39,13 @@ public class SchemaGenerator {
         enumSchemaCache.clear();
         enumCounter = 0;
 
+        String namespace = DEFAULT_NAMESPACE + "." + recordName.toLowerCase();
+
         if (rootType.getAvroType() == Schema.Type.RECORD) {
-            return generateRecordSchema(rootType, recordName, DEFAULT_NAMESPACE);
+            return generateRecordSchema(rootType, recordName, namespace);
         }
 
-        return generateTypeSchema(rootType, recordName, DEFAULT_NAMESPACE);
+        return generateTypeSchema(rootType, recordName, namespace);
     }
 
     /**
@@ -161,7 +163,7 @@ public class SchemaGenerator {
 
         String enumName = typeInfo.getRecordName() != null ? typeInfo.getRecordName() : sanitizeName(name);
 
-        String cacheKey = namespace + "." + enumName;
+        String cacheKey = (namespace != null ? namespace : "") + "." + enumName;
         if (enumSchemaCache.containsKey(cacheKey)) {
             return enumSchemaCache.get(cacheKey);
         }
@@ -186,7 +188,7 @@ public class SchemaGenerator {
                 String fieldName = entry.getKey();
                 AvroTypeInfo fieldType = entry.getValue();
 
-                Schema fieldSchema = generateTypeSchema(fieldType, fieldName, namespace);
+                Schema fieldSchema = generateTypeSchema(fieldType, fieldName, null);
 
                 // Ajouter default: null pour les champs nullable (union avec null en premier)
                 Object defaultValue = null;
@@ -272,7 +274,9 @@ public class SchemaGenerator {
             json.append("{\n");
             json.append(indentStr1).append("\"type\" : \"record\",\n");
             json.append(indentStr1).append("\"name\" : \"").append(schema.getName()).append("\",\n");
-            json.append(indentStr1).append("\"namespace\" : \"").append(schema.getNamespace()).append("\",\n");
+            if (schema.getNamespace() != null) {
+                json.append(indentStr1).append("\"namespace\" : \"").append(schema.getNamespace()).append("\",\n");
+            }
             json.append(indentStr1).append("\"fields\" : [ ");
 
             java.util.List<Schema.Field> fields = schema.getFields();

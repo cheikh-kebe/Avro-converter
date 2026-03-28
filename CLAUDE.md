@@ -20,6 +20,12 @@ mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc 
 # Run application with OpenAPI input (registry mode - for IBM/Confluent Schema Registry)
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --registry"
 
+# Run application with OpenAPI input (include doc fields from descriptions)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc User --doc"
+
+# Run application with OpenAPI input (registry mode + doc fields)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --registry --doc"
+
 # Run tests
 mvn test
 
@@ -31,6 +37,12 @@ java -jar target/json-to-avro-converter.jar data.json schema.avsc
 
 # Run JAR with registry mode (IBM Schema Registry / Confluent Schema Registry)
 java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry
+
+# Run JAR with doc fields (include OpenAPI descriptions as doc in Avro schema)
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --doc
+
+# Run JAR with registry mode + doc fields
+java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry --doc
 
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
@@ -85,6 +97,9 @@ This is a converter tool that supports:
   - Recommended for schema registry use cases
   - Single top-level `record` type (not a JSON array)
   - Nested types embedded inline at first occurrence, referenced by name on subsequent uses
+- **Doc Mode** (`--doc`): Includes `doc` fields in the generated Avro schema, extracted from OpenAPI `description` fields
+  - Can be combined with any other mode (e.g., `--registry --doc`)
+  - Off by default: without this flag, no `doc` fields are included
 
 ### Java Code Generation (Avro → Java) with Maven Plugin
 
