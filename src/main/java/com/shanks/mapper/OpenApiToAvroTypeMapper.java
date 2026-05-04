@@ -7,6 +7,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import org.apache.avro.Schema.Type;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Maps OpenAPI/Swagger schema types to Avro type information.
@@ -16,8 +17,9 @@ import java.util.*;
  */
 public class OpenApiToAvroTypeMapper {
 
+    private static final Pattern INVALID_CHARS = Pattern.compile("[^a-zA-Z0-9_]");
+
     private final OpenAPI openAPI;
-    private final Map<String, String> processedSchemas;
 
     /**
      * Constructor with OpenAPI specification.
@@ -26,7 +28,6 @@ public class OpenApiToAvroTypeMapper {
      */
     public OpenApiToAvroTypeMapper(OpenAPI openAPI) {
         this.openAPI = openAPI;
-        this.processedSchemas = new HashMap<>();
     }
 
     /**
@@ -300,7 +301,7 @@ public class OpenApiToAvroTypeMapper {
      * Sanitize field name for Avro.
      */
     private String sanitizeFieldName(String name) {
-        return name.replaceAll("[^a-zA-Z0-9_]", "_");
+        return INVALID_CHARS.matcher(name).replaceAll("_");
     }
 
     /**

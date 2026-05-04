@@ -97,7 +97,7 @@ public class SchemaGenerator {
      */
     private Schema generateStringSchema(AvroTypeInfo typeInfo) {
         if (typeInfo.getRecordName() != null && typeInfo.getLogicalType() != null) {
-            // Créer un schéma avec un nom pour les types logiques
+            // Named schema for logical types (e.g. UUID)
             StringBuilder schemaJson = new StringBuilder();
             schemaJson.append("{\"name\":\"").append(typeInfo.getRecordName()).append("\"");
             schemaJson.append(",\"type\":\"string\"");
@@ -190,7 +190,7 @@ public class SchemaGenerator {
 
                 Schema fieldSchema = generateTypeSchema(fieldType, fieldName, null);
 
-                // Ajouter default: null pour les champs nullable (union avec null en premier)
+                // Add default: null for nullable fields (union with null first)
                 Object defaultValue = null;
                 if (fieldType.getAvroType() == Schema.Type.UNION &&
                         fieldType.getUnionTypes() != null &&
@@ -293,7 +293,7 @@ public class SchemaGenerator {
 
                 if (fieldTypeInfo != null && fieldTypeInfo.getRecordName() != null &&
                         fieldTypeInfo.getLogicalType() != null) {
-                    // Type avec nom personnalisé (UUID, etc.)
+                    // Named type (UUID, etc.)
                     json.append("{\n");
                     json.append(indentStr1).append("    \"name\" : \"").append(fieldTypeInfo.getRecordName())
                             .append("\",\n");
@@ -311,7 +311,7 @@ public class SchemaGenerator {
                     json.append(field.schema().toString(true).replace("\n", "\n" + indentStr1 + "  "));
                 }
 
-                // Ajouter default: null pour les champs nullable
+                // Add default: null for nullable fields
                 if (field.defaultVal() != null && field.defaultVal().equals(Schema.Field.NULL_VALUE)) {
                     json.append(",\n");
                     json.append(indentStr1).append("  \"default\" : null");

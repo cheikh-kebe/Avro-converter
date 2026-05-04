@@ -8,7 +8,6 @@ import io.swagger.v3.oas.models.media.Schema;
 import org.apache.avro.Schema.Type;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Map;
 
@@ -24,7 +23,6 @@ public class OpenApiToAvroConverter {
     private final OpenApiParser parser;
     private final SchemaGenerator schemaGenerator;
     private final RegistrySchemaGenerator registrySchemaGenerator;
-    private boolean includeDoc = false;
 
     /**
      * Constructor with default components.
@@ -53,7 +51,6 @@ public class OpenApiToAvroConverter {
      * @param includeDoc true to include doc fields from OpenAPI descriptions
      */
     public void setIncludeDoc(boolean includeDoc) {
-        this.includeDoc = includeDoc;
         this.schemaGenerator.setIncludeDoc(includeDoc);
         this.registrySchemaGenerator.setIncludeDoc(includeDoc);
     }
@@ -96,7 +93,7 @@ public class OpenApiToAvroConverter {
                 String outputPath = new File(outputDir, outputFileName).getPath();
 
                 String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-                writeSchemaToFile(schemaJson, outputPath);
+                SchemaFileWriter.write(schemaJson, outputPath);
 
                 System.out.println("Generated: " + outputFileName);
             }
@@ -112,24 +109,9 @@ public class OpenApiToAvroConverter {
      * @throws IOException if file operations fail
      */
     public void convert(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
-        OpenAPI openAPI = parser.parse(inputOpenApiPath);
-
-        if (openAPI.getComponents() == null ||
-                openAPI.getComponents().getSchemas() == null) {
-            throw new IOException("No schemas found in OpenAPI specification");
-        }
-
-        Schema<?> schema = openAPI.getComponents().getSchemas().get(schemaName);
-        if (schema == null) {
-            throw new IOException("Schema '" + schemaName + "' not found in OpenAPI specification. " +
-                    "Available schemas: " + openAPI.getComponents().getSchemas().keySet());
-        }
-
-        OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
-        AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
-
+        AvroTypeInfo typeInfo = loadAndMap(inputOpenApiPath, schemaName);
         String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-        writeSchemaToFile(schemaJson, outputAvscPath);
+        SchemaFileWriter.write(schemaJson, outputAvscPath);
     }
 
     /**
@@ -142,10 +124,18 @@ public class OpenApiToAvroConverter {
      * @throws IOException if file operations fail
      */
     public void convertRegistry(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
+        AvroTypeInfo typeInfo = loadAndMap(inputOpenApiPath, schemaName);
+        String schemaJson = registrySchemaGenerator.generateRegistrySchema(typeInfo, schemaName);
+        SchemaFileWriter.write(schemaJson, outputAvscPath);
+    }
+
+    /**
+     * Parse the OpenAPI file, find the named schema, and map it to AvroTypeInfo.
+     */
+    private AvroTypeInfo loadAndMap(String inputOpenApiPath, String schemaName) throws IOException {
         OpenAPI openAPI = parser.parse(inputOpenApiPath);
 
-        if (openAPI.getComponents() == null ||
-                openAPI.getComponents().getSchemas() == null) {
+        if (openAPI.getComponents() == null || openAPI.getComponents().getSchemas() == null) {
             throw new IOException("No schemas found in OpenAPI specification");
         }
 
@@ -155,86 +145,7 @@ public class OpenApiToAvroConverter {
                     "Available schemas: " + openAPI.getComponents().getSchemas().keySet());
         }
 
-        OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
-        AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
-
-        String schemaJson = registrySchemaGenerator.generateRegistrySchema(typeInfo, schemaName);
-        writeSchemaToFile(schemaJson, outputAvscPath);
-    }
-
-    /**
-     * Write the schema to a file.
-     */
-    private void writeSchemaToFile(String schemaJson, String outputPath) throws IOException {
-        File outputFile = new File(outputPath);
-        File parentDir = outputFile.getParentFile();
-
-        if (parentDir != null && !parentDir.exists()) {
-            if (!parentDir.mkdirs()) {
-                throw new IOException("Failed to create output directory: " + parentDir.getAbsolutePath());
-            }
-        }
-
-        try (FileWriter writer = new FileWriter(outputFile)) {
-            writer.write(schemaJson);
-        }
-
-        // Generate minified one-line version (.min.avsc)
-        String minPath = buildMinPath(outputPath);
-        String minified = minifyJson(schemaJson);
-        try (FileWriter writer = new FileWriter(new File(minPath))) {
-            writer.write(minified);
-        }
-    }
-
-    /**
-     * Build the .min.avsc path from the original output path.
-     */
-    private String buildMinPath(String outputPath) {
-        int dotIndex = outputPath.lastIndexOf('.');
-        if (dotIndex > 0) {
-            return outputPath.substring(0, dotIndex) + ".min" + outputPath.substring(dotIndex);
-        }
-        return outputPath + ".min";
-    }
-
-    /**
-     * Minify a JSON string by removing unnecessary whitespace.
-     */
-    private String minifyJson(String json) {
-        StringBuilder result = new StringBuilder();
-        boolean inString = false;
-        boolean escape = false;
-
-        for (int i = 0; i < json.length(); i++) {
-            char c = json.charAt(i);
-
-            if (escape) {
-                result.append(c);
-                escape = false;
-                continue;
-            }
-
-            if (c == '\\' && inString) {
-                result.append(c);
-                escape = true;
-                continue;
-            }
-
-            if (c == '"') {
-                inString = !inString;
-                result.append(c);
-                continue;
-            }
-
-            if (inString) {
-                result.append(c);
-            } else if (!Character.isWhitespace(c)) {
-                result.append(c);
-            }
-        }
-
-        return result.toString();
+        return new OpenApiToAvroTypeMapper(openAPI).mapSchema(schema, schemaName);
     }
 
     /**
