@@ -103,12 +103,7 @@ public class OpenApiToAvroTypeMapper {
                     break;
                 case "date":
                 case "date-time":
-                    builder.avroType(Type.LONG)
-                            .logicalType("timestamp-millis");
-                    if (description != null && !description.isEmpty()) {
-                        builder.doc(description);
-                    }
-                    return builder.build();
+                    break;
             }
         }
 

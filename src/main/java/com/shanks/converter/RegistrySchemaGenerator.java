@@ -158,11 +158,7 @@ public class RegistrySchemaGenerator {
             case NULL:    return "\"null\"";
             case BOOLEAN: return "\"boolean\"";
             case INT:     return "\"int\"";
-            case LONG:
-                if ("timestamp-millis".equals(typeInfo.getLogicalType())) {
-                    return "{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}";
-                }
-                return "\"long\"";
+            case LONG:     return "\"long\"";
             case FLOAT:   return "\"float\"";
             case DOUBLE:  return "\"double\"";
             case STRING:  return stringType(typeInfo);
