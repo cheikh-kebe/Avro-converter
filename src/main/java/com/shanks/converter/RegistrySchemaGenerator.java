@@ -113,6 +113,7 @@ public class RegistrySchemaGenerator {
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"enum\",\n");
         sb.append(i1).append("\"name\": \"").append(name).append("\"");
+        sb.append(",\n").append(i1).append("\"namespace\": \"").append(namespace).append("\"");
 
         if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
             sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
