@@ -7,6 +7,7 @@ import io.swagger.v3.oas.models.media.Schema;
 import org.apache.avro.Schema.Type;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 /**
  * Maps OpenAPI/Swagger schema types to Avro type information.
@@ -16,8 +17,9 @@ import java.util.*;
  */
 public class OpenApiToAvroTypeMapper {
 
+    private static final Pattern INVALID_CHARS = Pattern.compile("[^a-zA-Z0-9_]");
+
     private final OpenAPI openAPI;
-    private final Map<String, String> processedSchemas;
 
     /**
      * Constructor with OpenAPI specification.
@@ -26,7 +28,6 @@ public class OpenApiToAvroTypeMapper {
      */
     public OpenApiToAvroTypeMapper(OpenAPI openAPI) {
         this.openAPI = openAPI;
-        this.processedSchemas = new HashMap<>();
     }
 
     /**
@@ -55,6 +56,7 @@ public class OpenApiToAvroTypeMapper {
 
         String type = schema.getType();
         String format = schema.getFormat();
+        String description = schema.getDescription();
 
         if (type == null) {
             return AvroTypeInfo.builder()
@@ -64,14 +66,17 @@ public class OpenApiToAvroTypeMapper {
 
         switch (type.toLowerCase()) {
             case "string":
-                return mapStringType(format, schema.getPattern());
+                return mapStringType(format, schema.getPattern(), description);
             case "integer":
-                return mapIntegerType(format);
+                return mapIntegerType(format, description);
             case "number":
-                return mapNumberType(format);
+                return mapNumberType(format, description);
             case "boolean":
                 AvroTypeInfo.Builder boolBuilder = AvroTypeInfo.builder()
                         .avroType(Type.BOOLEAN);
+                if (description != null && !description.isEmpty()) {
+                    boolBuilder.doc(description);
+                }
                 return boolBuilder.build();
             case "array":
                 return mapArrayType((ArraySchema) schema, fieldName);
@@ -85,9 +90,9 @@ public class OpenApiToAvroTypeMapper {
     }
 
     /**
-     * Map string type with format and pattern.
+     * Map string type with format, pattern and description.
      */
-    private AvroTypeInfo mapStringType(String format, String pattern) {
+    private AvroTypeInfo mapStringType(String format, String pattern, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.STRING);
 
@@ -98,9 +103,7 @@ public class OpenApiToAvroTypeMapper {
                     break;
                 case "date":
                 case "date-time":
-                    builder.avroType(Type.LONG)
-                            .logicalType("timestamp-millis");
-                    return builder.build();
+                    break;
             }
         }
 
@@ -108,38 +111,26 @@ public class OpenApiToAvroTypeMapper {
             builder.pattern(pattern);
         }
 
-        return builder.build();
-    }
-
-    /**
-     * Map integer type with format.
-     */
-    private AvroTypeInfo mapIntegerType(String format) {
-        AvroTypeInfo.Builder builder;
-        if ("int64".equals(format) || "long".equals(format)) {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.LONG);
-        } else {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.INT);
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
         }
 
         return builder.build();
     }
 
-    /**
-     * Map number type with format.
-     */
-    private AvroTypeInfo mapNumberType(String format) {
-        AvroTypeInfo.Builder builder;
-        if ("double".equals(format)) {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.DOUBLE);
-        } else {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.FLOAT);
+    private AvroTypeInfo mapIntegerType(String format, String description) {
+        AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
         }
+        return builder.build();
+    }
 
+    private AvroTypeInfo mapNumberType(String format, String description) {
+        AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
         return builder.build();
     }
 
@@ -157,6 +148,11 @@ public class OpenApiToAvroTypeMapper {
                 .enumSymbols(symbols)
                 .recordName(capitalize(fieldName));
 
+        String description = schema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
+
         return builder.build();
     }
 
@@ -170,6 +166,11 @@ public class OpenApiToAvroTypeMapper {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.ARRAY)
                 .arrayItemType(itemType);
+
+        String description = arraySchema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
 
         return builder.build();
     }
@@ -205,6 +206,11 @@ public class OpenApiToAvroTypeMapper {
                 .avroType(Type.RECORD)
                 .recordName(capitalize(fieldName))
                 .fields(fields);
+
+        String description = schema.getDescription();
+        if (description != null && !description.isEmpty()) {
+            builder.doc(description);
+        }
 
         return builder.build();
     }
@@ -255,6 +261,10 @@ public class OpenApiToAvroTypeMapper {
                 .addUnionType(AvroTypeInfo.builder().avroType(Type.NULL).build())
                 .addUnionType(typeInfo);
 
+        if (typeInfo.getDoc() != null) {
+            builder.doc(typeInfo.getDoc());
+        }
+
         return builder.build();
     }
 
@@ -262,7 +272,7 @@ public class OpenApiToAvroTypeMapper {
      * Sanitize field name for Avro.
      */
     private String sanitizeFieldName(String name) {
-        return name.replaceAll("[^a-zA-Z0-9_]", "_");
+        return INVALID_CHARS.matcher(name).replaceAll("_");
     }
 
     /**

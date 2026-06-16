@@ -54,6 +54,7 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 - Extraction automatique des patterns regex
 - Résolution des `$ref`
 - **Mode registry** (`--registry`) : Schéma unique auto-contenu compatible IBM/Confluent Schema Registry
+- **Mode doc** (`--doc`) : Inclut les champs `doc` dans le schéma Avro, extraits des `description` OpenAPI
 - Génération automatique d'un fichier `.min.avsc` (JSON one-line) à côté du `.avsc`
 
 **Exemples:**
@@ -64,6 +65,12 @@ java -jar target/json-to-avro-converter.jar api.yaml output-dir/
 
 # Mode registry (schéma unique auto-contenu pour Schema Registry)
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry
+
+# Avec champs doc (descriptions OpenAPI → doc Avro)
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --doc
+
+# Registry + doc combinés
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --doc
 ```
 
 **Mapping des types:**
@@ -244,6 +251,10 @@ java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc Cr
 # Mode standard (types inline dans le record)
 java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard
 # → Enum inline dans le record
+
+# Avec doc (descriptions OpenAPI incluses comme champs "doc" dans le schéma Avro)
+java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --doc
+# → Ajoute "doc": "..." sur les records, fields et enums ayant une description
 ```
 
 **Détection automatique (JSON):**

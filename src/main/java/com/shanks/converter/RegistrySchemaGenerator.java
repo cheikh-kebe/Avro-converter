@@ -19,6 +19,16 @@ public class RegistrySchemaGenerator {
     private static final String DEFAULT_NAMESPACE = "com.shanks.generated";
 
     private final Set<String> definedTypes = new LinkedHashSet<>();
+    private boolean includeDoc = false;
+
+    /**
+     * Set whether to include doc fields in generated schemas.
+     *
+     * @param includeDoc true to include doc fields from OpenAPI descriptions
+     */
+    public void setIncludeDoc(boolean includeDoc) {
+        this.includeDoc = includeDoc;
+    }
 
     /**
      * Generate an IBM Schema Registry compatible Avro schema.
@@ -31,7 +41,7 @@ public class RegistrySchemaGenerator {
         definedTypes.clear();
         // Pre-register the root to prevent infinite recursion on self-referencing types
         definedTypes.add(DEFAULT_NAMESPACE + "." + rootName);
-        return inlineRecord(rootType, rootName, DEFAULT_NAMESPACE, 0);
+        return inlineRecord(rootType, rootName, DEFAULT_NAMESPACE, 0, true);
     }
 
     // -------------------------------------------------------------------------
@@ -43,15 +53,21 @@ public class RegistrySchemaGenerator {
      * Opening '{' has no leading indent (caller places it after "type": or at start of output).
      * Content is at indent(keyIndent + 1), closing '}' at indent(keyIndent).
      */
-    private String inlineRecord(AvroTypeInfo typeInfo, String name, String namespace, int keyIndent) {
+    private String inlineRecord(AvroTypeInfo typeInfo, String name, String namespace, int keyIndent, boolean isRoot) {
         String i1 = ind(keyIndent + 1);
         String fi = ind(keyIndent + 2); // field object {
         String fc = ind(keyIndent + 3); // field content (name, type, default)
+        // Namespace for types nested inside this record
+        String childNamespace = namespace + "." + name.toLowerCase();
 
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"record\",\n");
-        sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
-        sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+        sb.append(i1).append("\"name\": \"").append(name).append("\"");
+        sb.append(",\n").append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+
+        if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+            sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
+        }
 
         sb.append(",\n").append(i1).append("\"fields\": [\n");
 
@@ -64,8 +80,12 @@ public class RegistrySchemaGenerator {
                 sb.append(fi).append("{\n");
                 sb.append(fc).append("\"name\": \"").append(field.getKey()).append("\"");
 
+                if (includeDoc && fieldType.getDoc() != null && !fieldType.getDoc().isEmpty()) {
+                    sb.append(",\n").append(fc).append("\"doc\": \"").append(esc(fieldType.getDoc())).append("\"");
+                }
+
                 sb.append(",\n").append(fc).append("\"type\": ");
-                sb.append(fieldType(fieldType, namespace, keyIndent + 3));
+                sb.append(fieldType(fieldType, childNamespace, keyIndent + 3));
 
                 if (isNullableUnion(fieldType)) {
                     sb.append(",\n").append(fc).append("\"default\": null\n");
@@ -92,8 +112,11 @@ public class RegistrySchemaGenerator {
 
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"enum\",\n");
-        sb.append(i1).append("\"name\": \"").append(name).append("\",\n");
-        sb.append(i1).append("\"namespace\": \"").append(namespace).append("\"");
+        sb.append(i1).append("\"name\": \"").append(name).append("\"");
+
+        if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
+            sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
+        }
 
         sb.append(",\n").append(i1).append("\"symbols\": [");
 
@@ -133,11 +156,7 @@ public class RegistrySchemaGenerator {
             case NULL:    return "\"null\"";
             case BOOLEAN: return "\"boolean\"";
             case INT:     return "\"int\"";
-            case LONG:
-                if ("timestamp-millis".equals(typeInfo.getLogicalType())) {
-                    return "{\"type\": \"long\", \"logicalType\": \"timestamp-millis\"}";
-                }
-                return "\"long\"";
+            case LONG:     return "\"long\"";
             case FLOAT:   return "\"float\"";
             case DOUBLE:  return "\"double\"";
             case STRING:  return stringType(typeInfo);
@@ -159,7 +178,7 @@ public class RegistrySchemaGenerator {
                     return "\"" + fullName + "\"";
                 }
                 definedTypes.add(fullName);
-                return inlineRecord(typeInfo, name, namespace, keyIndent);
+                return inlineRecord(typeInfo, name, namespace, keyIndent, false);
             }
 
             case ARRAY: {
@@ -253,4 +272,13 @@ public class RegistrySchemaGenerator {
         return "  ".repeat(Math.max(0, level));
     }
 
+    /** Escapes special characters for use inside a JSON string. */
+    private static String esc(String text) {
+        if (text == null) return "";
+        return text.replace("\\", "\\\\")
+                   .replace("\"", "\\\"")
+                   .replace("\n", "\\n")
+                   .replace("\r", "\\r")
+                   .replace("\t", "\\t");
+    }
 }

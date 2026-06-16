@@ -1,0 +1,687 @@
+openapi: 3.0.3
+info:
+  title: Deep Nesting Test API
+  version: 1.0.0
+  description: |
+    Tests deep object nesting and same-name objects at different hierarchy levels.
+    Key conflicts tested:
+      - "Address" appears in Customer, Supplier, Warehouse and BillingInfo
+      - "ContactInfo" appears in Customer, Supplier and Reviewer
+      - "Metadata" appears in Order, Product and Shipment
+
+components:
+  schemas:
+
+    # ================================================
+    # ENUMS
+    # ================================================
+    OrderStatus:
+      type: string
+      enum:
+        - PENDING
+        - CONFIRMED
+        - SHIPPED
+        - DELIVERED
+        - CANCELLED
+      description: Current status of the order
+
+    PaymentMethod:
+      type: string
+      enum:
+        - CARD
+        - BANK_TRANSFER
+        - WALLET
+        - CASH_ON_DELIVERY
+
+    ProductCategory:
+      type: string
+      enum:
+        - ELECTRONICS
+        - CLOTHING
+        - FOOD
+        - FURNITURE
+        - BOOKS
+
+    ShipmentStatus:
+      type: string
+      enum:
+        - PREPARING
+        - IN_TRANSIT
+        - OUT_FOR_DELIVERY
+        - DELIVERED
+        - RETURNED
+
+    ReviewRating:
+      type: string
+      enum:
+        - ONE
+        - TWO
+        - THREE
+        - FOUR
+        - FIVE
+
+    # ================================================
+    # ORDER - deep nesting with shared sub-object names
+    # ================================================
+    Order:
+      type: object
+      description: A complete purchase order
+      properties:
+        orderId:
+          type: string
+          format: uuid
+          description: Unique order identifier
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        createdAt:
+          type: string
+          format: date-time
+          description: Order creation timestamp
+        customer:
+          type: object
+          description: The customer placing the order
+          properties:
+            customerId:
+              type: string
+              format: uuid
+            firstName:
+              type: string
+            lastName:
+              type: string
+            email:
+              type: string
+              format: email
+            contactInfo:                        # ContactInfo level 3 (under Order.customer)
+              type: object
+              description: Customer contact details
+              properties:
+                phone:
+                  type: string
+                  pattern: '^\+?[1-9]\d{1,14}$'
+                alternatePhone:
+                  type: string
+                preferredContactHour:
+                  type: integer
+                  format: int32
+            address:                            # Address level 3 (under Order.customer)
+              type: object
+              description: Customer delivery address
+              properties:
+                street:
+                  type: string
+                houseNumber:
+                  type: string
+                city:
+                  type: string
+                postalCode:
+                  type: string
+                  pattern: '^\d{5}$'
+                country:
+                  type: string
+                coordinates:                    # Coordinates level 4 (under Order.customer.address)
+                  type: object
+                  description: GPS coordinates of the address
+                  properties:
+                    latitude:
+                      type: number
+                      format: double
+                    longitude:
+                      type: number
+                      format: double
+                    altitude:
+                      type: number
+                      format: float
+                    accuracy:
+                      type: object           # Accuracy level 5 (under Order.customer.address.coordinates)
+                      description: GPS accuracy info
+                      properties:
+                        horizontal:
+                          type: number
+                          format: double
+                        vertical:
+                          type: number
+                          format: double
+                        source:
+                          type: string
+                  required:
+                    - latitude
+                    - longitude
+              required:
+                - street
+                - city
+                - country
+            loyaltyProgram:
+              type: object
+              description: Customer loyalty program membership
+              properties:
+                membershipId:
+                  type: string
+                  format: uuid
+                tier:
+                  type: string
+                  enum:
+                    - BRONZE
+                    - SILVER
+                    - GOLD
+                    - PLATINUM
+                points:
+                  type: integer
+                  format: int64
+                enrolledAt:
+                  type: string
+                  format: date-time
+                rewards:
+                  type: array
+                  items:
+                    type: object              # Reward level 4 (under Order.customer.loyaltyProgram)
+                    description: An individual reward
+                    properties:
+                      rewardId:
+                        type: string
+                        format: uuid
+                      name:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date
+                      metadata:              # Metadata level 5 (under Order.customer.loyaltyProgram.rewards)
+                        type: object
+                        description: Reward metadata
+                        properties:
+                          source:
+                            type: string
+                          campaign:
+                            type: string
+                          tags:
+                            type: array
+                            items:
+                              type: string
+          required:
+            - customerId
+            - firstName
+            - lastName
+            - email
+        items:
+          type: array
+          description: List of ordered products
+          items:
+            type: object                        # OrderItem level 2 (under Order.items[])
+            description: A line item in the order
+            properties:
+              itemId:
+                type: string
+                format: uuid
+              quantity:
+                type: integer
+                format: int32
+              unitPrice:
+                type: number
+                format: double
+              discount:
+                type: number
+                format: float
+              product:
+                type: object                    # Product level 3 (under Order.items[].product)
+                description: The ordered product snapshot
+                properties:
+                  productId:
+                    type: string
+                    format: uuid
+                  sku:
+                    type: string
+                    pattern: '^[A-Z]{2,4}-\d{4,8}$'
+                  name:
+                    type: string
+                  category:
+                    $ref: '#/components/schemas/ProductCategory'
+                  dimensions:
+                    type: object              # Dimensions level 4 (under Order.items[].product)
+                    description: Physical dimensions
+                    properties:
+                      width:
+                        type: number
+                        format: double
+                      height:
+                        type: number
+                        format: double
+                      depth:
+                        type: number
+                        format: double
+                      unit:
+                        type: string
+                        enum:
+                          - CM
+                          - INCH
+                    required:
+                      - width
+                      - height
+                      - depth
+              required:
+                - itemId
+                - quantity
+                - unitPrice
+        payment:
+          type: object
+          description: Payment information
+          properties:
+            paymentId:
+              type: string
+              format: uuid
+            method:
+              $ref: '#/components/schemas/PaymentMethod'
+            paidAt:
+              type: string
+              format: date-time
+            amount:
+              type: number
+              format: double
+            currency:
+              type: string
+            billingInfo:
+              type: object                      # BillingInfo level 3 (under Order.payment)
+              description: Billing details
+              properties:
+                cardLastFour:
+                  type: string
+                  pattern: '^\d{4}$'
+                cardHolder:
+                  type: string
+                address:                        # Address level 4 (under Order.payment.billingInfo)
+                  type: object                  # SAME NAME as Order.customer.address !
+                  description: Billing address
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                    postalCode:
+                      type: string
+                    country:
+                      type: string
+                    vatNumber:
+                      type: string
+                      pattern: '^[A-Z]{2}\d{9,12}$'
+                  required:
+                    - street
+                    - city
+                    - country
+          required:
+            - paymentId
+            - method
+            - amount
+        shipment:
+          type: object
+          description: Shipment tracking
+          properties:
+            shipmentId:
+              type: string
+              format: uuid
+            carrier:
+              type: string
+            trackingNumber:
+              type: string
+            status:
+              $ref: '#/components/schemas/ShipmentStatus'
+            estimatedDelivery:
+              type: string
+              format: date
+            metadata:                           # Metadata level 3 (under Order.shipment)
+              type: object
+              description: Shipment metadata
+              properties:
+                labelUrl:
+                  type: string
+                weight:
+                  type: number
+                  format: double
+                fragile:
+                  type: boolean
+                insurance:
+                  type: object                  # Insurance level 4 (under Order.shipment.metadata)
+                  description: Shipment insurance details
+                  properties:
+                    insured:
+                      type: boolean
+                    amount:
+                      type: number
+                      format: double
+                    provider:
+                      type: string
+            events:
+              type: array
+              description: Tracking events
+              items:
+                type: object                    # TrackingEvent level 3 (under Order.shipment.events[])
+                description: A shipment tracking event
+                properties:
+                  eventId:
+                    type: string
+                    format: uuid
+                  occurredAt:
+                    type: string
+                    format: date-time
+                  description:
+                    type: string
+                  location:                     # Location level 4 (under Order.shipment.events[])
+                    type: object
+                    description: Event location
+                    properties:
+                      city:
+                        type: string
+                      country:
+                        type: string
+                      facility:
+                        type: object            # Facility level 5 (under Order.shipment.events[].location)
+                        description: Logistics facility
+                        properties:
+                          facilityId:
+                            type: string
+                          name:
+                            type: string
+                          address:              # Address level 6 (under Order.shipment.events[].location.facility)
+                            type: object        # SAME NAME as the others!
+                            description: Facility address
+                            properties:
+                              street:
+                                type: string
+                              city:
+                                type: string
+                              country:
+                                type: string
+                          contactInfo:          # ContactInfo level 6 (under Order.shipment.events[].location.facility)
+                            type: object        # SAME NAME as Order.customer.contactInfo !
+                            description: Facility contact
+                            properties:
+                              phone:
+                                type: string
+                              email:
+                                type: string
+                              operatingHours:
+                                type: string
+        metadata:                               # Metadata level 2 (under Order) - SAME NAME as Order.shipment.metadata
+          type: object
+          description: Order-level metadata
+          properties:
+            source:
+              type: string
+              enum:
+                - WEB
+                - MOBILE
+                - API
+                - IN_STORE
+            ipAddress:
+              type: string
+            userAgent:
+              type: string
+            sessionId:
+              type: string
+              format: uuid
+            abTestGroup:
+              type: string
+      required:
+        - orderId
+        - status
+        - customer
+        - items
+        - payment
+
+    # ================================================
+    # CATALOG - different top-level schema, reuses same sub-object names
+    # ================================================
+    Catalog:
+      type: object
+      description: Product catalog with supplier and warehouse info
+      properties:
+        catalogId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        supplier:
+          type: object                          # Supplier level 2 (under Catalog)
+          description: The product supplier
+          properties:
+            supplierId:
+              type: string
+              format: uuid
+            companyName:
+              type: string
+            contactInfo:                        # ContactInfo level 3 (under Catalog.supplier)
+              type: object                      # SAME NAME as Order.customer.contactInfo !
+              description: Supplier contact details
+              properties:
+                phone:
+                  type: string
+                email:
+                  type: string
+                faxNumber:
+                  type: string
+                website:
+                  type: string
+            address:                            # Address level 3 (under Catalog.supplier)
+              type: object                      # SAME NAME as Order.customer.address !
+              description: Supplier headquarters address
+              properties:
+                street:
+                  type: string
+                city:
+                  type: string
+                region:
+                  type: string
+                postalCode:
+                  type: string
+                country:
+                  type: string
+                coordinates:                    # Coordinates level 4 (under Catalog.supplier.address)
+                  type: object                  # SAME NAME as Order.customer.address.coordinates !
+                  description: Supplier location coordinates
+                  properties:
+                    latitude:
+                      type: number
+                      format: double
+                    longitude:
+                      type: number
+                      format: double
+              required:
+                - street
+                - city
+                - country
+            certifications:
+              type: array
+              items:
+                type: object                    # Certification level 3 (under Catalog.supplier.certifications[])
+                description: A supplier certification
+                properties:
+                  certId:
+                    type: string
+                  name:
+                    type: string
+                  issuedAt:
+                    type: string
+                    format: date
+                  expiresAt:
+                    type: string
+                    format: date
+                  issuingBody:
+                    type: object                # IssuingBody level 4 (under Catalog.supplier.certifications[])
+                    description: The certification authority
+                    properties:
+                      name:
+                        type: string
+                      country:
+                        type: string
+                      contactInfo:              # ContactInfo level 5 (SAME NAME, 3rd occurrence!)
+                        type: object
+                        description: Authority contact
+                        properties:
+                          phone:
+                            type: string
+                          email:
+                            type: string
+        products:
+          type: array
+          description: Products in this catalog
+          items:
+            type: object                        # CatalogProduct level 2 (under Catalog.products[])
+            description: A product in the catalog
+            properties:
+              productId:
+                type: string
+                format: uuid
+              name:
+                type: string
+              category:
+                $ref: '#/components/schemas/ProductCategory'
+              price:
+                type: number
+                format: double
+              stock:
+                type: integer
+                format: int32
+              metadata:                         # Metadata level 3 (under Catalog.products[])
+                type: object                    # SAME NAME as Order.metadata and Order.shipment.metadata !
+                description: Product metadata
+                properties:
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  seoTitle:
+                    type: string
+                  seoDescription:
+                    type: string
+                  publishedAt:
+                    type: string
+                    format: date-time
+              warehouse:
+                type: object                    # Warehouse level 3 (under Catalog.products[].warehouse)
+                description: Storage warehouse
+                properties:
+                  warehouseId:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+                  address:                      # Address level 4 (under Catalog.products[].warehouse)
+                    type: object                # SAME NAME, 4th occurrence!
+                    description: Warehouse address
+                    properties:
+                      street:
+                        type: string
+                      city:
+                        type: string
+                      postalCode:
+                        type: string
+                      country:
+                        type: string
+                    required:
+                      - street
+                      - city
+                      - country
+                  capacity:
+                    type: object                # Capacity level 4 (under Catalog.products[].warehouse)
+                    description: Warehouse capacity
+                    properties:
+                      maxUnits:
+                        type: integer
+                        format: int64
+                      currentUnits:
+                        type: integer
+                        format: int64
+                      zones:
+                        type: array
+                        items:
+                          type: object          # Zone level 5 (under Catalog.products[].warehouse.capacity)
+                          description: A storage zone
+                          properties:
+                            zoneId:
+                              type: string
+                            label:
+                              type: string
+                            temperature:
+                              type: object      # Temperature level 6 (under ...warehouse.capacity.zones[])
+                              description: Climate control settings
+                              properties:
+                                min:
+                                  type: number
+                                  format: double
+                                max:
+                                  type: number
+                                  format: double
+                                unit:
+                                  type: string
+                                  enum:
+                                    - CELSIUS
+                                    - FAHRENHEIT
+              reviews:
+                type: array
+                description: Customer reviews
+                items:
+                  type: object                  # Review level 3 (under Catalog.products[].reviews[])
+                  description: A product review
+                  properties:
+                    reviewId:
+                      type: string
+                      format: uuid
+                    rating:
+                      $ref: '#/components/schemas/ReviewRating'
+                    title:
+                      type: string
+                    body:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    reviewer:
+                      type: object              # Reviewer level 4 (under Catalog.products[].reviews[])
+                      description: The person who wrote the review
+                      properties:
+                        reviewerId:
+                          type: string
+                          format: uuid
+                        displayName:
+                          type: string
+                        isVerifiedPurchase:
+                          type: boolean
+                        contactInfo:            # ContactInfo level 5 (SAME NAME, 4th occurrence!)
+                          type: object
+                          description: Reviewer contact (optional)
+                          properties:
+                            email:
+                              type: string
+                            isPublic:
+                              type: boolean
+                    moderation:
+                      type: object              # Moderation level 4 (under Catalog.products[].reviews[])
+                      description: Review moderation status
+                      properties:
+                        isApproved:
+                          type: boolean
+                        reviewedAt:
+                          type: string
+                          format: date-time
+                        moderator:
+                          type: object          # Moderator level 5 (under ...reviews[].moderation)
+                          description: The moderator
+                          properties:
+                            moderatorId:
+                              type: string
+                              format: uuid
+                            username:
+                              type: string
+                            metadata:           # Metadata level 6 (SAME NAME, deepest occurrence!)
+                              type: object
+                              description: Moderator metadata
+                              properties:
+                                department:
+                                  type: string
+                                level:
+                                  type: integer
+                                  format: int32
+      required:
+        - catalogId
+        - name
+        - supplier
