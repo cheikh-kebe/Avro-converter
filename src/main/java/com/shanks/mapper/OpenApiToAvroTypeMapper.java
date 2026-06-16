@@ -118,43 +118,19 @@ public class OpenApiToAvroTypeMapper {
         return builder.build();
     }
 
-    /**
-     * Map integer type with format and description.
-     */
     private AvroTypeInfo mapIntegerType(String format, String description) {
-        AvroTypeInfo.Builder builder;
-        if ("int64".equals(format) || "long".equals(format)) {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.LONG);
-        } else {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.INT);
-        }
-
+        AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
             builder.doc(description);
         }
-
         return builder.build();
     }
 
-    /**
-     * Map number type with format and description.
-     */
     private AvroTypeInfo mapNumberType(String format, String description) {
-        AvroTypeInfo.Builder builder;
-        if ("double".equals(format)) {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.DOUBLE);
-        } else {
-            builder = AvroTypeInfo.builder()
-                    .avroType(Type.FLOAT);
-        }
-
+        AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
             builder.doc(description);
         }
-
         return builder.build();
     }
 

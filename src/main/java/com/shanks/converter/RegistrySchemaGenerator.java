@@ -39,10 +39,9 @@ public class RegistrySchemaGenerator {
      */
     public String generateRegistrySchema(AvroTypeInfo rootType, String rootName) {
         definedTypes.clear();
-        String namespace = DEFAULT_NAMESPACE + "." + rootName.toLowerCase();
         // Pre-register the root to prevent infinite recursion on self-referencing types
-        definedTypes.add(namespace + "." + rootName);
-        return inlineRecord(rootType, rootName, namespace, 0, true);
+        definedTypes.add(DEFAULT_NAMESPACE + "." + rootName);
+        return inlineRecord(rootType, rootName, DEFAULT_NAMESPACE, 0, true);
     }
 
     // -------------------------------------------------------------------------
@@ -58,14 +57,13 @@ public class RegistrySchemaGenerator {
         String i1 = ind(keyIndent + 1);
         String fi = ind(keyIndent + 2); // field object {
         String fc = ind(keyIndent + 3); // field content (name, type, default)
+        // Namespace for types nested inside this record
+        String childNamespace = namespace + "." + name.toLowerCase();
 
         StringBuilder sb = new StringBuilder("{\n");
         sb.append(i1).append("\"type\": \"record\",\n");
         sb.append(i1).append("\"name\": \"").append(name).append("\"");
-
-        if (isRoot) {
-            sb.append(",\n").append(i1).append("\"namespace\": \"").append(namespace).append("\"");
-        }
+        sb.append(",\n").append(i1).append("\"namespace\": \"").append(namespace).append("\"");
 
         if (includeDoc && typeInfo.getDoc() != null && !typeInfo.getDoc().isEmpty()) {
             sb.append(",\n").append(i1).append("\"doc\": \"").append(esc(typeInfo.getDoc())).append("\"");
@@ -87,7 +85,7 @@ public class RegistrySchemaGenerator {
                 }
 
                 sb.append(",\n").append(fc).append("\"type\": ");
-                sb.append(fieldType(fieldType, namespace, keyIndent + 3));
+                sb.append(fieldType(fieldType, childNamespace, keyIndent + 3));
 
                 if (isNullableUnion(fieldType)) {
                     sb.append(",\n").append(fc).append("\"default\": null\n");

@@ -39,13 +39,11 @@ public class SchemaGenerator {
         enumSchemaCache.clear();
         enumCounter = 0;
 
-        String namespace = DEFAULT_NAMESPACE + "." + recordName.toLowerCase();
-
         if (rootType.getAvroType() == Schema.Type.RECORD) {
-            return generateRecordSchema(rootType, recordName, namespace);
+            return generateRecordSchema(rootType, recordName, DEFAULT_NAMESPACE);
         }
 
-        return generateTypeSchema(rootType, recordName, namespace);
+        return generateTypeSchema(rootType, recordName, DEFAULT_NAMESPACE);
     }
 
     /**
@@ -180,6 +178,8 @@ public class SchemaGenerator {
      */
     private Schema generateRecordSchema(AvroTypeInfo typeInfo, String name, String namespace) {
         String recordName = typeInfo.getRecordName() != null ? typeInfo.getRecordName() : sanitizeName(name);
+        // Child namespace deepens the hierarchy: parent.namespace + "." + this record name
+        String childNamespace = namespace + "." + recordName.toLowerCase();
 
         List<Schema.Field> fields = new ArrayList<>();
 
@@ -188,7 +188,7 @@ public class SchemaGenerator {
                 String fieldName = entry.getKey();
                 AvroTypeInfo fieldType = entry.getValue();
 
-                Schema fieldSchema = generateTypeSchema(fieldType, fieldName, null);
+                Schema fieldSchema = generateTypeSchema(fieldType, fieldName, childNamespace);
 
                 // Add default: null for nullable fields (union with null first)
                 Object defaultValue = null;
@@ -254,78 +254,8 @@ public class SchemaGenerator {
         return json;
     }
 
-    /**
-     * Generate schema with custom type information preserved.
-     */
     public String generateSchemaJson(AvroTypeInfo rootType, String recordName) {
         Schema schema = generateSchema(rootType, recordName);
-        return buildCustomJson(schema, rootType, 0);
-    }
-
-    /**
-     * Build custom JSON preserving type names from AvroTypeInfo.
-     */
-    private String buildCustomJson(Schema schema, AvroTypeInfo typeInfo, int indent) {
-        StringBuilder json = new StringBuilder();
-        String indentStr = "  ".repeat(indent);
-        String indentStr1 = "  ".repeat(indent + 1);
-
-        if (schema.getType() == Schema.Type.RECORD) {
-            json.append("{\n");
-            json.append(indentStr1).append("\"type\" : \"record\",\n");
-            json.append(indentStr1).append("\"name\" : \"").append(schema.getName()).append("\",\n");
-            if (schema.getNamespace() != null) {
-                json.append(indentStr1).append("\"namespace\" : \"").append(schema.getNamespace()).append("\",\n");
-            }
-            json.append(indentStr1).append("\"fields\" : [ ");
-
-            java.util.List<Schema.Field> fields = schema.getFields();
-            for (int i = 0; i < fields.size(); i++) {
-                Schema.Field field = fields.get(i);
-                AvroTypeInfo fieldTypeInfo = typeInfo.getFields() != null ? typeInfo.getFields().get(field.name())
-                        : null;
-
-                if (i > 0)
-                    json.append(", ");
-                json.append("{\n");
-                json.append(indentStr1).append("  \"name\" : \"").append(field.name()).append("\",\n");
-                json.append(indentStr1).append("  \"type\" : ");
-
-                if (fieldTypeInfo != null && fieldTypeInfo.getRecordName() != null &&
-                        fieldTypeInfo.getLogicalType() != null) {
-                    // Named type (UUID, etc.)
-                    json.append("{\n");
-                    json.append(indentStr1).append("    \"name\" : \"").append(fieldTypeInfo.getRecordName())
-                            .append("\",\n");
-                    json.append(indentStr1).append("    \"type\" : \"string\",\n");
-                    json.append(indentStr1).append("    \"logicalType\" : \"").append(fieldTypeInfo.getLogicalType())
-                            .append("\"");
-                    if (fieldTypeInfo.getPattern() != null && !fieldTypeInfo.getPattern().isEmpty()) {
-                        json.append(",\n");
-                        json.append(indentStr1).append("    \"pattern\" : \"").append(fieldTypeInfo.getPattern())
-                                .append("\"");
-                    }
-                    json.append("\n");
-                    json.append(indentStr1).append("  }");
-                } else {
-                    json.append(field.schema().toString(true).replace("\n", "\n" + indentStr1 + "  "));
-                }
-
-                // Add default: null for nullable fields
-                if (field.defaultVal() != null && field.defaultVal().equals(Schema.Field.NULL_VALUE)) {
-                    json.append(",\n");
-                    json.append(indentStr1).append("  \"default\" : null");
-                }
-
-                json.append("\n").append(indentStr1).append("}");
-            }
-
-            json.append(" ]\n");
-            json.append(indentStr).append("}");
-        } else {
-            return schema.toString(true);
-        }
-
-        return json.toString();
+        return schema.toString(true);
     }
 }

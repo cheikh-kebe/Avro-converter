@@ -1,0 +1,344 @@
+openapi: 3.0.3
+info:
+  title: Forward Refs Test API
+  version: 1.0.0
+  description: |
+    Tests internal $ref where referenced schemas are defined AFTER their usage.
+    Order of definition: complex schemas first, primitives last.
+
+components:
+  schemas:
+
+    # ================================================
+    # TOP-LEVEL SCHEMAS — reference everything below
+    # ================================================
+
+    PurchaseOrder:
+      type: object
+      description: A complete purchase order referencing schemas defined below
+      required:
+        - orderId
+        - customer
+        - items
+        - payment
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/OrderStatus'       # enum defined below
+        customer:
+          $ref: '#/components/schemas/Customer'          # record defined below
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'       # record defined below
+        payment:
+          $ref: '#/components/schemas/Payment'           # record defined below
+        shippingAddress:
+          $ref: '#/components/schemas/Address'           # record defined below (1st use)
+        billingAddress:
+          $ref: '#/components/schemas/Address'           # same ref, 2nd use at same level
+        notes:
+          type: string
+
+    Catalog:
+      type: object
+      description: Product catalog — also references schemas defined below
+      required:
+        - catalogId
+        - products
+      properties:
+        catalogId:
+          type: string
+          format: uuid
+        updatedAt:
+          type: string
+          format: date-time
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'         # defined below
+        supplier:
+          $ref: '#/components/schemas/Supplier'          # defined below
+          # Supplier.address also uses Address (defined below) — shared ref across trees
+
+    # ================================================
+    # MID-LEVEL SCHEMAS — reference primitives below
+    # ================================================
+
+    Customer:
+      type: object
+      description: The customer placing the order
+      required:
+        - customerId
+        - firstName
+        - lastName
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+        address:
+          $ref: '#/components/schemas/Address'           # defined below
+        loyaltyTier:
+          $ref: '#/components/schemas/LoyaltyTier'       # enum defined below
+
+    OrderItem:
+      type: object
+      description: A line item within an order
+      required:
+        - itemId
+        - quantity
+        - unitPrice
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          format: int32
+        unitPrice:
+          type: number
+          format: double
+        product:
+          $ref: '#/components/schemas/Product'           # defined below
+        discount:
+          $ref: '#/components/schemas/Discount'          # defined below
+
+    Payment:
+      type: object
+      description: Payment details
+      required:
+        - paymentId
+        - method
+        - amount
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        method:
+          $ref: '#/components/schemas/PaymentMethod'     # enum defined below
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        billingAddress:
+          $ref: '#/components/schemas/Address'           # same Address ref again, different parent
+
+    Product:
+      type: object
+      description: A product
+      required:
+        - productId
+        - name
+      properties:
+        productId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          pattern: '^[A-Z]{2,4}-\d{4,8}$'
+        name:
+          type: string
+        category:
+          $ref: '#/components/schemas/ProductCategory'   # enum defined below
+        price:
+          type: number
+          format: double
+        dimensions:
+          $ref: '#/components/schemas/Dimensions'        # defined below
+        warehouse:
+          $ref: '#/components/schemas/Warehouse'         # defined below
+
+    Supplier:
+      type: object
+      description: A product supplier
+      required:
+        - supplierId
+        - name
+      properties:
+        supplierId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'           # shared ref — Address used in Customer, Payment, PurchaseOrder and here
+        contact:
+          $ref: '#/components/schemas/ContactInfo'       # defined below
+
+    # ================================================
+    # SUPPORTING RECORDS — defined after usage
+    # ================================================
+
+    Address:
+      type: object
+      description: A postal address (referenced by Customer, Payment, PurchaseOrder, Supplier)
+      required:
+        - street
+        - city
+        - country
+      properties:
+        street:
+          type: string
+        houseNumber:
+          type: string
+        city:
+          type: string
+        postalCode:
+          type: string
+          pattern: '^\d{5}(-\d{4})?$'
+        region:
+          type: string
+        country:
+          type: string
+        coordinates:
+          $ref: '#/components/schemas/GeoPoint'          # defined further below
+
+    ContactInfo:
+      type: object
+      description: Contact information
+      properties:
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{1,14}$'
+        email:
+          type: string
+          format: email
+        website:
+          type: string
+
+    Discount:
+      type: object
+      description: A discount applied to an order item
+      properties:
+        code:
+          type: string
+        percentage:
+          type: number
+          format: float
+        type:
+          $ref: '#/components/schemas/DiscountType'      # enum defined at the very bottom
+
+    Dimensions:
+      type: object
+      description: Physical dimensions of a product
+      required:
+        - width
+        - height
+        - depth
+      properties:
+        width:
+          type: number
+          format: double
+        height:
+          type: number
+          format: double
+        depth:
+          type: number
+          format: double
+        weightKg:
+          type: number
+          format: double
+        unit:
+          type: string
+          enum:
+            - CM
+            - INCH
+
+    Warehouse:
+      type: object
+      description: Storage warehouse for a product
+      properties:
+        warehouseId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'           # Address used yet again
+
+    # ================================================
+    # PRIMITIVES / LEAF RECORDS — defined last
+    # ================================================
+
+    GeoPoint:
+      type: object
+      description: GPS coordinates (defined last, referenced deep in Address)
+      required:
+        - latitude
+        - longitude
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        altitudeMeters:
+          type: number
+          format: float
+
+    # ================================================
+    # ENUMS — all defined at the very end
+    # ================================================
+
+    OrderStatus:
+      type: string
+      description: Lifecycle status of an order
+      enum:
+        - PENDING
+        - CONFIRMED
+        - SHIPPED
+        - DELIVERED
+        - CANCELLED
+
+    PaymentMethod:
+      type: string
+      description: Accepted payment methods
+      enum:
+        - CARD
+        - BANK_TRANSFER
+        - WALLET
+        - CASH_ON_DELIVERY
+
+    ProductCategory:
+      type: string
+      description: Product categories
+      enum:
+        - ELECTRONICS
+        - CLOTHING
+        - FOOD
+        - FURNITURE
+        - BOOKS
+
+    LoyaltyTier:
+      type: string
+      description: Customer loyalty tier
+      enum:
+        - BRONZE
+        - SILVER
+        - GOLD
+        - PLATINUM
+
+    DiscountType:
+      type: string
+      description: Type of discount (defined last of all)
+      enum:
+        - PERCENTAGE
+        - FIXED_AMOUNT
+        - FREE_SHIPPING
