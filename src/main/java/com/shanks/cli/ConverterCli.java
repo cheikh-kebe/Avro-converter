@@ -182,8 +182,25 @@ public class ConverterCli {
                 openApiConverter.setIncludeDoc(true);
             }
 
-            // If args contains a schema name (3rd argument), convert specific schema
-            if (args.length >= 3 && !args[2].startsWith("--")) {
+            // If the 3rd argument is --from-request-body, convert the requestBody schema
+            // of a specific path/method operation.
+            if (args.length >= 3 && "--from-request-body".equals(args[2])) {
+                if (args.length < 5) {
+                    throw new IllegalArgumentException(
+                            "--from-request-body requires <path> <method>, e.g. --from-request-body /users POST");
+                }
+                String pathKey = args[3];
+                String httpMethod = args[4];
+                System.out.println("  RequestBody: " + httpMethod.toUpperCase() + " " + pathKey);
+
+                if (registryMode) {
+                    System.out.println("  Mode:   Registry (single self-contained schema for IBM/Confluent Schema Registry)");
+                    openApiConverter.convertRegistryFromRequestBody(inputPath, pathKey, httpMethod, outputPath);
+                } else {
+                    openApiConverter.convertFromRequestBody(inputPath, pathKey, httpMethod, outputPath);
+                }
+            } else if (args.length >= 3 && !args[2].startsWith("--")) {
+                // If args contains a schema name (3rd argument), convert specific schema
                 String schemaName = args[2];
                 System.out.println("  Schema: " + schemaName);
 
@@ -281,6 +298,7 @@ public class ConverterCli {
         System.err.println();
         System.err.println("Convert usage (default):");
         System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc]");
+        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc]");
         System.err.println();
         System.err.println("Examples:");
         System.err.println("  # Generate sample JSON from Avro schema");
@@ -303,5 +321,8 @@ public class ConverterCli {
         System.err.println();
         System.err.println("  # Registry mode with doc fields");
         System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry --doc");
+        System.err.println();
+        System.err.println("  # Convert the requestBody schema of a specific path/method operation");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-request-body /users POST");
     }
 }

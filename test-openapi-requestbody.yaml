@@ -1,0 +1,242 @@
+openapi: 3.0.3
+info:
+  title: RequestBody Conversion Test API
+  description: Test file used to validate OpenAPI requestBody -> Avro conversion.
+  version: 1.0.0
+paths:
+  /users:
+    post:
+      operationId: createUser
+      summary: Create a new user
+      description: Creates a user using an inline requestBody schema referencing a shared type.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    get:
+      operationId: listUsers
+      summary: List users
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /orders:
+    put:
+      operationId: replaceOrder
+      summary: Replace an order
+      description: Uses an inline (non-$ref) object schema directly in the requestBody.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Inline order payload, not declared under components/schemas.
+              required:
+                - orderId
+                - amount
+              properties:
+                orderId:
+                  type: string
+                  format: uuid
+                  description: Unique identifier of the order.
+                amount:
+                  type: number
+                  format: double
+                  description: Total order amount.
+                currency:
+                  type: string
+                  pattern: '^[A-Z]{3}$'
+                  description: ISO 4217 currency code.
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Order replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+
+  /orders/{orderId}/cancel:
+    post:
+      summary: Cancel an order (no operationId, to test path/method fallback naming)
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Cancellation reason.
+      responses:
+        '200':
+          description: Order cancelled
+
+  /reports:
+    delete:
+      operationId: purgeReports
+      summary: Purge reports (no requestBody, used to validate error handling)
+      responses:
+        '204':
+          description: No content
+
+  /tasks/{taskId}/status:
+    post:
+      operationId: getTaskStatus
+      summary: Report task status
+      description: >-
+        Inline requestBody with plain string properties plus a nested $ref field,
+        to validate that a $ref used inside an inline object is resolved correctly.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - taskId
+                - status
+                - operationId
+                - response
+              properties:
+                taskId:
+                  type: string
+                  description: Identifier of the task.
+                status:
+                  type: string
+                  description: Current task status.
+                operationId:
+                  type: string
+                  description: Identifier of the operation that produced this status.
+                response:
+                  $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '200':
+          description: Task status reported
+
+components:
+  schemas:
+    CreateUserRequest:
+      type: object
+      description: Payload required to create a user.
+      required:
+        - username
+        - email
+      properties:
+        username:
+          type: string
+          description: Unique username.
+        email:
+          type: string
+          format: email
+          description: User's email address.
+        profile:
+          $ref: '#/components/schemas/Profile'
+        role:
+          $ref: '#/components/schemas/UserRole'
+
+    Profile:
+      type: object
+      description: Extended profile information.
+      properties:
+        displayName:
+          type: string
+        bio:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        city:
+          type: string
+        zipCode:
+          type: string
+          pattern: '^\d{5}$'
+
+    UserRole:
+      type: string
+      description: Role assigned to the user.
+      enum:
+        - ADMIN
+        - MEMBER
+        - GUEST
+
+    User:
+      type: object
+      description: A registered user.
+      required:
+        - id
+        - username
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        profile:
+          $ref: '#/components/schemas/Profile'
+        role:
+          $ref: '#/components/schemas/UserRole'
+        createdAt:
+          type: string
+          format: date-time
+
+    Order:
+      type: object
+      description: An order placed by a user.
+      required:
+        - orderId
+        - amount
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+        billingAddress:
+          $ref: '#/components/schemas/Address'
+        shippingAddress:
+          $ref: '#/components/schemas/Address'

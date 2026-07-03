@@ -31,6 +31,9 @@ java -jar target/json-to-avro-converter.jar data.json schema.avsc
 # OpenAPI → Avro Schema (mode registry pour IBM/Confluent Schema Registry)
 java -jar target/json-to-avro-converter.jar api.yaml output.avsc User --registry
 
+# OpenAPI → Avro Schema depuis le requestBody d'une opération
+java -jar target/json-to-avro-converter.jar api.yaml output.avsc --from-request-body /users POST
+
 # Avro → Java (automatique)
 mvn compile  # Les classes sont générées dans target/generated-sources/avro/
 
@@ -53,6 +56,7 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 - Conversion directe des types et enums
 - Extraction automatique des patterns regex
 - Résolution des `$ref`
+- **Conversion depuis un schéma nommé** (`components/schemas`) ou **depuis le `requestBody`** d'une opération (`--from-request-body`)
 - **Mode registry** (`--registry`) : Schéma unique auto-contenu compatible IBM/Confluent Schema Registry
 - **Mode doc** (`--doc`) : Inclut les champs `doc` dans le schéma Avro, extraits des `description` OpenAPI
 - Génération automatique d'un fichier `.min.avsc` (JSON one-line) à côté du `.avsc`
@@ -63,6 +67,9 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 # Mode standard (fichiers séparés, types inline)
 java -jar target/json-to-avro-converter.jar api.yaml output-dir/
 
+# Schéma nommé depuis components/schemas
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User
+
 # Mode registry (schéma unique auto-contenu pour Schema Registry)
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry
 
@@ -71,6 +78,29 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --doc
 
 # Registry + doc combinés
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --doc
+
+# Depuis le requestBody d'une opération (path + méthode HTTP)
+java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-request-body /users POST
+
+# Idem, combinable avec --registry et --doc
+java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-request-body /users POST --registry --doc
+```
+
+**Conversion depuis le `requestBody` (`--from-request-body <path> <méthode>`):**
+
+Plutôt que de cibler un schéma nommé dans `components/schemas`, ce mode va chercher directement le schéma JSON déclaré dans le `requestBody` d'une opération donnée (`paths.<path>.<méthode>.requestBody.content['application/json'].schema`). Utile quand le payload d'entrée d'un endpoint n'est pas (ou pas entièrement) un schéma nommé.
+
+- `<path>` : la clé du path OpenAPI telle qu'écrite dans le spec, y compris les accolades (ex: `/orders/{orderId}/cancel`) — à mettre entre guillemets si le shell interprète les `{}`.
+- `<méthode>` : `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` ou `TRACE` (insensible à la casse).
+- Le nom du record Avro généré est dérivé automatiquement :
+  - depuis l'`operationId` de l'opération s'il est présent (ex: `createUser` → `CreateUser`) ;
+  - sinon depuis le path + la méthode (ex: `/orders/{orderId}/cancel` + `POST` → `OrdersOrderIdCancelPost`).
+- Si le schéma du `requestBody` est un `$ref`, il est résolu comme n'importe quel autre `$ref` (imbrication, enums, patterns compris).
+- Erreurs explicites si le path, la méthode ou le `requestBody` n'existent pas dans le spec.
+
+```bash
+# Exemple avec fallback de nom (pas d'operationId)
+java -jar target/json-to-avro-converter.jar api.yaml Cancel.avsc --from-request-body "/orders/{orderId}/cancel" POST
 ```
 
 **Mapping des types:**
