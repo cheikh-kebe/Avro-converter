@@ -49,6 +49,9 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 
 ## 📖 Documentation Détaillée
 
+[lien vers diagramme](./docs/diagrams/converter-architecture.drawio.svg)
+
+
 ### OpenAPI/Swagger → Avro
 
 **Fonctionnalités clés:**
@@ -59,6 +62,7 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 - **Conversion depuis un schéma nommé** (`components/schemas`) ou **depuis le `requestBody`** d'une opération (`--from-request-body`)
 - **Mode registry** (`--registry`) : Schéma unique auto-contenu compatible IBM/Confluent Schema Registry
 - **Mode doc** (`--doc`) : Inclut les champs `doc` dans le schéma Avro, extraits des `description` OpenAPI
+- **Périmètre fonctionnel** (`--functional-perimeter <nom>`) : Ajoute un suffixe au namespace par défaut (`com.shanks.generated.<nom>`)
 - Génération automatique d'un fichier `.min.avsc` (JSON one-line) à côté du `.avsc`
 
 **Exemples:**
@@ -84,7 +88,14 @@ java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-requ
 
 # Idem, combinable avec --registry et --doc
 java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-request-body /users POST --registry --doc
+
+# Avec un périmètre fonctionnel personnalisé (namespace: com.shanks.generated.users)
+java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --functional-perimeter users --from-request-body /users POST
 ```
+
+**Périmètre fonctionnel (`--functional-perimeter <nom>`):**
+
+Ajoute `<nom>` en suffixe du namespace par défaut (`com.shanks.generated` → `com.shanks.generated.<nom>`), utile pour isoler les schémas de plusieurs domaines métier générés depuis la même spec OpenAPI. Compatible avec tous les autres modes (`--registry`, `--doc`, `--from-request-body`, schéma nommé). Placé n'importe où dans les arguments après `<output.avsc>`.
 
 **Conversion depuis le `requestBody` (`--from-request-body <path> <méthode>`):**
 

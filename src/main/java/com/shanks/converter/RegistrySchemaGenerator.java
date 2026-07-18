@@ -20,6 +20,7 @@ public class RegistrySchemaGenerator {
 
     private final Set<String> definedTypes = new LinkedHashSet<>();
     private boolean includeDoc = false;
+    private String namespace = DEFAULT_NAMESPACE;
 
     /**
      * Set whether to include doc fields in generated schemas.
@@ -28,6 +29,18 @@ public class RegistrySchemaGenerator {
      */
     public void setIncludeDoc(boolean includeDoc) {
         this.includeDoc = includeDoc;
+    }
+
+    /**
+     * Set the functional perimeter to append to the default namespace
+     * (e.g. "users" produces "com.shanks.generated.users").
+     *
+     * @param functionalPerimeter the functional perimeter name, or null/blank to reset to the default namespace
+     */
+    public void setFunctionalPerimeter(String functionalPerimeter) {
+        this.namespace = (functionalPerimeter == null || functionalPerimeter.trim().isEmpty())
+                ? DEFAULT_NAMESPACE
+                : DEFAULT_NAMESPACE + "." + functionalPerimeter.trim();
     }
 
     /**
@@ -40,8 +53,8 @@ public class RegistrySchemaGenerator {
     public String generateRegistrySchema(AvroTypeInfo rootType, String rootName) {
         definedTypes.clear();
         // Pre-register the root to prevent infinite recursion on self-referencing types
-        definedTypes.add(DEFAULT_NAMESPACE + "." + rootName);
-        return inlineRecord(rootType, rootName, DEFAULT_NAMESPACE, 0, true);
+        definedTypes.add(namespace + "." + rootName);
+        return inlineRecord(rootType, rootName, namespace, 0, true);
     }
 
     // -------------------------------------------------------------------------

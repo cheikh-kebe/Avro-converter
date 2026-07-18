@@ -62,6 +62,17 @@ public class OpenApiToAvroConverter {
     }
 
     /**
+     * Set the functional perimeter to append to the default namespace
+     * (e.g. "users" produces "com.shanks.generated.users").
+     *
+     * @param functionalPerimeter the functional perimeter name, or null/blank to reset to the default namespace
+     */
+    public void setFunctionalPerimeter(String functionalPerimeter) {
+        this.schemaGenerator.setFunctionalPerimeter(functionalPerimeter);
+        this.registrySchemaGenerator.setFunctionalPerimeter(functionalPerimeter);
+    }
+
+    /**
      * Convert an OpenAPI file to Avro schema files.
      * Generates one Avro schema file per schema defined in components/schemas.
      *

@@ -18,6 +18,7 @@ public class SchemaGenerator {
     private final Map<String, Schema> enumSchemaCache = new HashMap<>();
     private boolean includeDoc = false;
     private int enumCounter = 0;
+    private String namespace = DEFAULT_NAMESPACE;
 
     /**
      * Set whether to include doc fields in generated schemas.
@@ -26,6 +27,18 @@ public class SchemaGenerator {
      */
     public void setIncludeDoc(boolean includeDoc) {
         this.includeDoc = includeDoc;
+    }
+
+    /**
+     * Set the functional perimeter to append to the default namespace
+     * (e.g. "users" produces "com.shanks.generated.users").
+     *
+     * @param functionalPerimeter the functional perimeter name, or null/blank to reset to the default namespace
+     */
+    public void setFunctionalPerimeter(String functionalPerimeter) {
+        this.namespace = (functionalPerimeter == null || functionalPerimeter.trim().isEmpty())
+                ? DEFAULT_NAMESPACE
+                : DEFAULT_NAMESPACE + "." + functionalPerimeter.trim();
     }
 
     /**
@@ -40,10 +53,10 @@ public class SchemaGenerator {
         enumCounter = 0;
 
         if (rootType.getAvroType() == Schema.Type.RECORD) {
-            return generateRecordSchema(rootType, recordName, DEFAULT_NAMESPACE);
+            return generateRecordSchema(rootType, recordName, namespace);
         }
 
-        return generateTypeSchema(rootType, recordName, DEFAULT_NAMESPACE);
+        return generateTypeSchema(rootType, recordName, namespace);
     }
 
     /**
