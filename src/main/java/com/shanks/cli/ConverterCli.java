@@ -168,6 +168,13 @@ public class ConverterCli {
         String inputPath = cliArgs.getInputJsonPath();
         String outputPath = cliArgs.getOutputAvscPath();
 
+        String envelopeName = getFlagValue(args, "--envelope");
+        if (envelopeName != null) {
+            System.out.println("  Envelope: " + envelopeName);
+            openApiConverter.setEnvelope(envelopeName);
+            jsonConverter.setEnvelope(envelopeName);
+        }
+
         if (isOpenApiFile(inputPath)) {
             System.out.println("Converting OpenAPI/Swagger to Avro schema...");
             System.out.println("  Input:  " + inputPath);
@@ -288,7 +295,7 @@ public class ConverterCli {
             if ("--registry".equals(arg) || "--doc".equals(arg)) {
                 continue;
             }
-            if ("--functional-perimeter".equals(arg)) {
+            if ("--functional-perimeter".equals(arg) || "--envelope".equals(arg)) {
                 i++; // skip the flag's value
                 continue;
             }
@@ -357,8 +364,8 @@ public class ConverterCli {
         System.err.println("  encode <schema.avsc> --generate <output.avro> [SchemaName]");
         System.err.println();
         System.err.println("Convert usage (default):");
-        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>]");
-        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>]");
+        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>]");
+        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>]");
         System.err.println();
         System.err.println("Examples:");
         System.err.println("  # Generate sample JSON from Avro schema");
@@ -387,5 +394,8 @@ public class ConverterCli {
         System.err.println();
         System.err.println("  # Convert with a custom functional-perimeter namespace (com.shanks.generated.<name>)");
         System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --functional-perimeter users --from-request-body /users POST");
+        System.err.println();
+        System.err.println("  # Convert using a non-default notif envelope (src/main/resources/envelopes/<name>.json)");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope minimal");
     }
 }

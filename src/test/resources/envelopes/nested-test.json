@@ -1,0 +1,31 @@
+{
+  "type": "record",
+  "name": "Notif",
+  "namespace": "${namespace}",
+  "fields": [
+    {
+      "name": "wrapper",
+      "type": {
+        "type": "record",
+        "name": "Wrapper",
+        "namespace": "${namespace}.notif",
+        "fields": [
+          {
+            "name": "deeplyNested",
+            "type": {
+              "type": "record",
+              "name": "DeeplyNested",
+              "namespace": "${namespace}.notif.wrapper",
+              "fields": [
+                {
+                  "name": "payload",
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

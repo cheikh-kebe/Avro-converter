@@ -25,6 +25,7 @@ public class JsonToAvroConverter {
     private final ObjectMapper objectMapper;
     private final TypeInferenceEngine inferenceEngine;
     private final SchemaGenerator schemaGenerator;
+    private String envelopeName = "default";
 
     /**
      * Constructor with default type detectors.
@@ -75,7 +76,16 @@ public class JsonToAvroConverter {
 
         String prettyJson = schemaGenerator.generateSchemaJson(typeInfo, "RootRecord");
 
-        SchemaFileWriter.write(prettyJson, outputAvscPath);
+        SchemaFileWriter.write(prettyJson, outputAvscPath, envelopeName);
+    }
+
+    /**
+     * Set the envelope template used to build the notif-wrapped (.webhook.avsc) output.
+     *
+     * @param envelopeName the envelope template name (see {@link NotifWrapperGenerator})
+     */
+    public void setEnvelope(String envelopeName) {
+        this.envelopeName = envelopeName;
     }
 
     /**

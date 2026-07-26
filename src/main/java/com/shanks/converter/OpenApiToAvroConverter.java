@@ -29,6 +29,7 @@ public class OpenApiToAvroConverter {
     private final OpenApiParser parser;
     private final SchemaGenerator schemaGenerator;
     private final RegistrySchemaGenerator registrySchemaGenerator;
+    private String envelopeName = "default";
 
     /**
      * Constructor with default components.
@@ -73,6 +74,15 @@ public class OpenApiToAvroConverter {
     }
 
     /**
+     * Set the envelope template used to build the notif-wrapped (.webhook.avsc) output.
+     *
+     * @param envelopeName the envelope template name (see {@link NotifWrapperGenerator})
+     */
+    public void setEnvelope(String envelopeName) {
+        this.envelopeName = envelopeName;
+    }
+
+    /**
      * Convert an OpenAPI file to Avro schema files.
      * Generates one Avro schema file per schema defined in components/schemas.
      *
@@ -110,7 +120,7 @@ public class OpenApiToAvroConverter {
                 String outputPath = new File(outputDir, outputFileName).getPath();
 
                 String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-                SchemaFileWriter.write(schemaJson, outputPath);
+                SchemaFileWriter.write(schemaJson, outputPath, envelopeName);
 
                 System.out.println("Generated: " + outputFileName);
             }
@@ -128,7 +138,7 @@ public class OpenApiToAvroConverter {
     public void convert(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
         AvroTypeInfo typeInfo = loadAndMap(inputOpenApiPath, schemaName);
         String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath);
+        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName);
     }
 
     /**
@@ -143,7 +153,7 @@ public class OpenApiToAvroConverter {
     public void convertRegistry(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
         AvroTypeInfo typeInfo = loadAndMap(inputOpenApiPath, schemaName);
         String schemaJson = registrySchemaGenerator.generateRegistrySchema(typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath);
+        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName);
     }
 
     /**
@@ -159,7 +169,7 @@ public class OpenApiToAvroConverter {
                                         String outputAvscPath) throws IOException {
         RequestBodySchema resolved = loadAndMapFromRequestBody(inputOpenApiPath, pathKey, httpMethod);
         String schemaJson = schemaGenerator.generateSchemaJson(resolved.typeInfo, resolved.schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath);
+        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName);
     }
 
     /**
@@ -176,7 +186,7 @@ public class OpenApiToAvroConverter {
                                                 String outputAvscPath) throws IOException {
         RequestBodySchema resolved = loadAndMapFromRequestBody(inputOpenApiPath, pathKey, httpMethod);
         String schemaJson = registrySchemaGenerator.generateRegistrySchema(resolved.typeInfo, resolved.schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath);
+        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName);
     }
 
     /**
@@ -280,6 +290,7 @@ public class OpenApiToAvroConverter {
 
     private static final Pattern INVALID_NAME_CHARS = Pattern.compile("[^a-zA-Z0-9]+");
 
+    /** Capitalize first letter of a string, stripping invalid characters. */
     private String capitalize(String str) {
         if (str == null || str.isEmpty()) {
             return str;
