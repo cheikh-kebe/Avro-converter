@@ -267,6 +267,14 @@ public class SchemaGenerator {
         return json;
     }
 
+    /**
+     * Generate an Avro schema from the root type information and return it as
+     * pretty-printed JSON.
+     *
+     * @param rootType   the root type information
+     * @param recordName the name for the root record
+     * @return the pretty-printed JSON string
+     */
     public String generateSchemaJson(AvroTypeInfo rootType, String recordName) {
         Schema schema = generateSchema(rootType, recordName);
         return schema.toString(true);

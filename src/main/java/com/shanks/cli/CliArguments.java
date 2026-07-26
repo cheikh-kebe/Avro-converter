@@ -85,10 +85,16 @@ public class CliArguments {
         }
     }
 
+    /**
+     * @return the input JSON file path
+     */
     public String getInputJsonPath() {
         return inputJsonPath;
     }
 
+    /**
+     * @return the output AVSC file path
+     */
     public String getOutputAvscPath() {
         return outputAvscPath;
     }

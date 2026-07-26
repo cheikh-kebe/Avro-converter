@@ -22,6 +22,9 @@ public class AvroJsonGenerator {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * Constructor: sets up a Jackson mapper configured for indented JSON output.
+     */
     public AvroJsonGenerator() {
         this.objectMapper = new ObjectMapper();
         this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
@@ -97,6 +100,7 @@ public class AvroJsonGenerator {
         }
     }
 
+    /** Generate a sample value for each field of a record schema, keyed by field name. */
     private Map<String, Object> generateRecord(Schema schema) {
         Map<String, Object> record = new LinkedHashMap<>();
         for (Schema.Field field : schema.getFields()) {

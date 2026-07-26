@@ -118,6 +118,7 @@ public class OpenApiToAvroTypeMapper {
         return builder.build();
     }
 
+    /** Map integer type to Avro string (avoids precision loss across int32/int64 formats). */
     private AvroTypeInfo mapIntegerType(String format, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
@@ -126,6 +127,7 @@ public class OpenApiToAvroTypeMapper {
         return builder.build();
     }
 
+    /** Map number type to Avro string (avoids precision loss across float/double formats). */
     private AvroTypeInfo mapNumberType(String format, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
