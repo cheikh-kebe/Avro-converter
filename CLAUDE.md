@@ -26,6 +26,12 @@ mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc 
 # Run application with OpenAPI input (registry mode + doc fields)
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml ResultResponse.avsc ResultResponse --registry --doc"
 
+# Run application with OpenAPI input (custom functional-perimeter namespace)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml CreateUser.avsc --functional-perimeter users --from-request-body /users POST"
+
+# Run application with OpenAPI input (non-default notif envelope template)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc User --envelope minimal"
+
 # Run tests
 mvn test
 
@@ -43,6 +49,12 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --doc
 
 # Run JAR with registry mode + doc fields
 java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry --doc
+
+# Run JAR with a custom functional-perimeter namespace (com.shanks.generated.<name>)
+java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --functional-perimeter users --from-request-body /users POST
+
+# Run JAR with a non-default notif envelope template (src/main/resources/envelopes/<name>.json)
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope minimal
 
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
@@ -81,7 +93,10 @@ The converter uses **Swagger Parser v3 (2.1.22)** which supports:
 - YAML (`.yaml`, `.yml`)
 - JSON (`.json`)
 
-The test file `test-openapi.yaml` uses OpenAPI 3.0.3 specification.
+The test files use OpenAPI 3.0.3 specification:
+- `test-openapi.yaml`: General conversion tests
+- `test-openapi-deep.yaml`: Deep nesting (6 levels) with repeated type names (`Address`, `ContactInfo`, `Metadata`) at multiple hierarchy positions
+- `test-openapi-refs.yaml`: Forward `$ref` references (schemas defined after their first use), same `$ref` used multiple times at the same level and across different hierarchy positions
 
 ## Architecture Notes
 
@@ -92,14 +107,57 @@ This is a converter tool that supports:
 
 ### Conversion Modes (OpenAPI only)
 
-- **Standard Mode** (default): Generates one file per schema, types may be duplicated
+- **Standard Mode** (default): Generates one file per schema using Avro's Schema API; `schema.toString(true)` handles deduplication of repeated `$ref` types automatically
 - **Registry Mode** (`--registry`): Generates a single self-contained JSON object compatible with IBM Schema Registry and Confluent Schema Registry
   - Recommended for schema registry use cases
   - Single top-level `record` type (not a JSON array)
-  - Nested types embedded inline at first occurrence, referenced by name on subsequent uses
+  - Nested types embedded inline at first occurrence, referenced by full qualified name on subsequent uses
+  - Deduplication tracked via `definedTypes` set (full name = `namespace.name`)
 - **Doc Mode** (`--doc`): Includes `doc` fields in the generated Avro schema, extracted from OpenAPI `description` fields
   - Can be combined with any other mode (e.g., `--registry --doc`)
   - Off by default: without this flag, no `doc` fields are included
+- **Functional Perimeter** (`--functional-perimeter <name>`): Appends `<name>` to the default namespace (`com.shanks.generated` → `com.shanks.generated.<name>`)
+  - Can be combined with any other mode/flag, in any argument position after `<output.avsc>`
+  - Applies to both Standard Mode (`SchemaGenerator`) and Registry Mode (`RegistrySchemaGenerator`)
+  - Off by default: without this flag, the namespace stays `com.shanks.generated`
+- **Envelope Selection** (`--envelope <name>`): Selects which notif envelope template builds the `.webhook.avsc` output (see [Output Files](#output-files))
+  - Loads `src/main/resources/envelopes/<name>.json` from the classpath
+  - Defaults to `default` (the original fixed structure) when omitted
+  - Applies to both OpenAPI and JSON conversion modes
+
+### Output Files
+
+Every schema conversion (`SchemaFileWriter.write`) always produces three files from a single `<name>.avsc` output path, regardless of mode:
+
+| File | Purpose |
+|---|---|
+| `<name>.avsc` | Pretty-printed Avro schema (the raw converted schema) |
+| `<name>.min.avsc` | Minified, single-line copy of the same schema |
+| `<name>.webhook.avsc` | The schema consolidated into a `notif` envelope template (see below) |
+
+**`notif` envelope (`NotifWrapperGenerator`) — envelope-agnostic:** the envelope structure is not hardcoded in Java. It's loaded from a JSON template at `src/main/resources/envelopes/<envelopeName>.json` (`envelopeName` selected via `--envelope <name>`, default `"default"`). `NotifWrapperGenerator` treats the template as opaque data: it recursively searches the tree for an Avro field definition named `payload` (an object with `"name": "payload"` and a sibling `"type"` key) and overwrites its `type` with the generated schema, regardless of how deeply that field is nested or what else surrounds it. Adding a new envelope version is just adding a new template file — no code changes required.
+
+The bundled `default.json` template reproduces the original structure:
+
+```
+Notif (root record)
+├── header : Header (record)
+│   ├── technical : Technical (record, currently empty — fields TBD)
+│   └── functional : Functional (record, currently empty — fields TBD)
+└── payload : <the generated schema, injected here>
+```
+
+The bundled `minimal.json` template demonstrates a different shape — `payload` sits directly at the root, with no `header`:
+
+```
+Notif (root record)
+└── payload : <the generated schema, injected here>
+```
+
+- Templates use the literal token `${namespace}` anywhere a namespace should follow the generated schema's own root `namespace` (so it follows `--functional-perimeter` automatically); the token is substituted by simple string replacement before the template is parsed as JSON.
+- The `.webhook.avsc` file is always generated — there is no flag to opt out of it, only of which envelope template shapes it.
+- Works identically for Standard Mode and Registry Mode output, since it operates on the already-generated schema JSON string (parsed and re-embedded via Jackson), not the Avro `Schema` object.
+- An unknown `--envelope <name>` (no matching template on the classpath) or a template with no `payload` field fails the conversion with a clear error before any files are written.
 
 ### Java Code Generation (Avro → Java) with Maven Plugin
 
@@ -160,7 +218,8 @@ target/
 - ✅ **IDE integration**: IntelliJ/Eclipse recognize generated sources automatically
 - ✅ **Batch processing**: All schemas in `src/main/avro/` are processed
 - ✅ **Java-friendly**: Generates String (not CharSequence), private fields, getters/setters
-- ✅ **Type support**: Records, enums, arrays, maps, unions, logical types (UUID, timestamp, decimal)
+- ✅ **Type support**: Records, enums, arrays, maps, unions, logical types (UUID, decimal)
+- ✅ **Conflict-free**: Hierarchical namespaces prevent `can't redefine` errors for repeated type names
 
 **Usage:**
 ```bash
@@ -182,8 +241,9 @@ mvn clean install
 - String type: `java.lang.String` (not CharSequence)
 - Setters: Enabled
 - Builder pattern: Automatically generated for all records
-- Logical types: UUID → java.util.UUID, timestamp-millis → java.time.Instant
+- Logical types: UUID → java.util.UUID
 - Namespace: Package structure matches Avro namespace (`com.shanks.model` → `com/shanks/model/`)
+- Hierarchical namespaces: nested records/enums get unique namespaces based on their position in the schema tree (conflict-free compilation)
 
 **Workflow:**
 1. Create/update `.avsc` schemas in `src/main/avro/`
@@ -202,8 +262,8 @@ mvn clean install
     {"name": "userId", "type": {"type": "string", "logicalType": "uuid"}},
     {"name": "username", "type": "string"},
     {"name": "email", "type": "string"},
-    {"name": "age", "type": ["null", "int"], "default": null},
-    {"name": "createdAt", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+    {"name": "age", "type": ["null", "string"], "default": null},
+    {"name": "createdAt", "type": ["null", "string"], "default": null}
   ]
 }
 ```
@@ -215,6 +275,58 @@ mvn clean install
 - Always up-to-date classes after build
 - Works seamlessly in CI/CD pipelines
 - IDE auto-completion for generated classes
+
+### Type Mapping (OpenAPI → Avro)
+
+| OpenAPI type | Format | Avro type |
+|---|---|---|
+| `string` | (none) | `string` |
+| `string` | `uuid` | `string` + `logicalType: uuid` |
+| `string` | `date` | `string` |
+| `string` | `date-time` | `string` |
+| `string` | `email` | `string` |
+| `integer` | any (`int32`, `int64`) | `string` |
+| `number` | any (`float`, `double`) | `string` |
+| `boolean` | — | `boolean` |
+| `object` | — | `record` |
+| `array` | — | `array` |
+| enum values | — | `enum` |
+
+> All numeric and date/time types are intentionally mapped to `string` to avoid precision loss and simplify cross-system compatibility.
+
+### Namespace Strategy
+
+Each named type (record or enum) receives a hierarchical namespace encoding its full ancestry path in the schema tree. This guarantees unique full names even when the same type name appears at multiple positions.
+
+**Rule:** `childNamespace = parentNamespace + "." + parentRecordName.toLowerCase()`
+
+**Example:**
+```
+Root schema Order       → namespace: com.shanks.generated
+  field customer        → com.shanks.generated.order.Customer
+    field address       → com.shanks.generated.order.customer.Address
+  field payment         → com.shanks.generated.order.Payment
+    field billingInfo   → com.shanks.generated.order.payment.BillingInfo
+      field address     → com.shanks.generated.order.payment.billinginfo.Address  ← different!
+```
+
+Both `Address` records exist at different hierarchy positions and have different full names — no `can't redefine` error on `mvn compile`.
+
+**Custom root namespace (`--functional-perimeter <name>`):** the root namespace (`com.shanks.generated` above) becomes `com.shanks.generated.<name>`, and every hierarchical child namespace is derived from that new root — e.g. with `--functional-perimeter orders`, `com.shanks.generated.order.Customer` becomes `com.shanks.generated.orders.order.Customer`.
+
+**Applies to:** records and enums, in both standard mode and registry mode. Enums always emit an explicit `"namespace"` field to prevent Avro namespace inheritance from a sibling record.
+
+### $ref Handling
+
+- **Forward refs**: SwaggerParser resolves the entire OpenAPI file before conversion — `$ref` to schemas defined later in the file are transparent.
+- **Same `$ref` at the same level** (e.g., `shippingAddress` and `billingAddress` both referencing `Address`):
+  - Standard mode: `schema.toString(true)` deduplicates via a shared `Names` context — second occurrence emits a name string reference
+  - Registry mode: `definedTypes` set tracks emitted full names — second occurrence emits `"com.shanks.generated.Address"`
+- **Same `$ref` at different levels**: each occurrence gets a different hierarchical namespace, so each is a distinct named type with no conflict
+
+### Known Namespace Behaviour
+
+When compiling multiple `.avsc` files with `mvn compile`, Avro's Maven plugin processes them independently. If two files define a type with the same full name (e.g., both define `com.shanks.generated.Address`), the second file will fail with `can't redefine`. The hierarchical namespace strategy prevents this by ensuring all generated types have unique full names.
 
 ### Pattern Support
 
