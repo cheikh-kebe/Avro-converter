@@ -15,24 +15,24 @@
     "semantic_hash": "76032b3533ac7d3369d61348df98fe57"
   },
   "src/main/java/com/shanks/cli/ConverterCli.java": {
-    "mtime": 1785048833.0272448,
-    "ast_hash": "a2c6131e2df9eac74f403a96f82a9777",
-    "semantic_hash": ""
+    "mtime": 1784387278.7260857,
+    "ast_hash": "59c5f1a975ba8b642ca9c9b0711e39c3",
+    "semantic_hash": "59c5f1a975ba8b642ca9c9b0711e39c3"
   },
   "src/main/java/com/shanks/converter/JsonToAvroConverter.java": {
-    "mtime": 1785048807.2721746,
-    "ast_hash": "a1fe9281dad9b2e172bb57f2bed3e92b",
-    "semantic_hash": ""
+    "mtime": 1781723770.570641,
+    "ast_hash": "9c57c52f836e4a245e818563cdb53a9f",
+    "semantic_hash": "9c57c52f836e4a245e818563cdb53a9f"
   },
   "src/main/java/com/shanks/converter/NotifWrapperGenerator.java": {
-    "mtime": 1785048741.2733192,
-    "ast_hash": "f790d6fbcbc89eafaa3acd30a6cc0055",
-    "semantic_hash": ""
+    "mtime": 1785008382.0175505,
+    "ast_hash": "c258c9bdb03090a24c2eeff05fbc6cba",
+    "semantic_hash": "c258c9bdb03090a24c2eeff05fbc6cba"
   },
   "src/main/java/com/shanks/converter/OpenApiToAvroConverter.java": {
-    "mtime": 1785048798.2172074,
-    "ast_hash": "4762e4eb81d3b136d203914942c03bee",
-    "semantic_hash": ""
+    "mtime": 1785008394.8213205,
+    "ast_hash": "2306dc912b4fd966347c9315b9eaba37",
+    "semantic_hash": "2306dc912b4fd966347c9315b9eaba37"
   },
   "src/main/java/com/shanks/converter/RegistrySchemaGenerator.java": {
     "mtime": 1784385686.2226124,
@@ -40,9 +40,9 @@
     "semantic_hash": "59d36d5e3390a75975eed4f12bff34ef"
   },
   "src/main/java/com/shanks/converter/SchemaFileWriter.java": {
-    "mtime": 1785048758.4062572,
-    "ast_hash": "82f222fd0925de2c24a84e3c6a55bd1f",
-    "semantic_hash": ""
+    "mtime": 1785008389.946003,
+    "ast_hash": "6cccc90ab1645ed12a30971e156bc572",
+    "semantic_hash": "6cccc90ab1645ed12a30971e156bc572"
   },
   "src/main/java/com/shanks/converter/SchemaGenerator.java": {
     "mtime": 1785008370.4249904,
@@ -150,14 +150,14 @@
     "semantic_hash": "0756adb637464cc4bcf145fd6af30b65"
   },
   "CLAUDE.md": {
-    "mtime": 1785057122.065161,
-    "ast_hash": "a9748c2cbcca02f32623f62bb3377e17",
-    "semantic_hash": ""
+    "mtime": 1784995973.0868747,
+    "ast_hash": "94b29514892f6177ca405ddcc517dd99",
+    "semantic_hash": "94b29514892f6177ca405ddcc517dd99"
   },
   "README.md": {
-    "mtime": 1785057176.3158984,
-    "ast_hash": "a60700c2c6dca59dfaf40e7611c7bc84",
-    "semantic_hash": ""
+    "mtime": 1784996986.151425,
+    "ast_hash": "3cb935512a688039b657ea294f3f7448",
+    "semantic_hash": "3cb935512a688039b657ea294f3f7448"
   },
   "test-openapi-deep.yaml": {
     "mtime": 1781723770.570641,
@@ -183,30 +183,5 @@
     "mtime": 1784384510.5159185,
     "ast_hash": "a19010bb9b0fee872c00a927dcaf007b",
     "semantic_hash": "a19010bb9b0fee872c00a927dcaf007b"
-  },
-  "src/main/resources/envelopes/default.json": {
-    "mtime": 1785048724.932096,
-    "ast_hash": "d2987510caafc9ad87749fdbbf4cc41a",
-    "semantic_hash": ""
-  },
-  "src/main/resources/envelopes/minimal.json": {
-    "mtime": 1785055262.9778373,
-    "ast_hash": "82c5510178c095be02e2c100f8a799b9",
-    "semantic_hash": ""
-  },
-  "src/test/java/com/shanks/converter/NotifWrapperGeneratorTest.java": {
-    "mtime": 1785048865.1607375,
-    "ast_hash": "a76fdb436886b42e3b3f3803ca06546b",
-    "semantic_hash": ""
-  },
-  "src/test/resources/envelopes/nested-test.json": {
-    "mtime": 1785048851.8847368,
-    "ast_hash": "1567df86402ac4a1ee584e86c86b42b8",
-    "semantic_hash": ""
-  },
-  "src/test/resources/envelopes/no-payload-test.json": {
-    "mtime": 1785048855.2927494,
-    "ast_hash": "4767c55155526d8259096b7eda453cda",
-    "semantic_hash": ""
   }
 }

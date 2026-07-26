@@ -1,18 +1,12 @@
-# Graph Report - demo  (2026-07-26)
+# Graph Report - .  (2026-07-25)
 
 ## Corpus Check
-- 37 files · ~24,783 words
-- Verdict: corpus is large enough that graph structure adds value.
+- Corpus is ~23,646 words - fits in a single context window. You may not need a graph.
 
 ## Summary
-- 445 nodes · 1027 edges · 20 communities (16 shown, 4 thin omitted)
-- Extraction: 81% EXTRACTED · 18% INFERRED · 0% AMBIGUOUS · INFERRED: 189 edges (avg confidence: 0.81)
-- Token cost: 0 input · 0 output
-
-## Graph Freshness
-- Built from commit: `f6338849`
-- Run `git rev-parse HEAD` and compare to check if the graph is stale.
-- Run `graphify update .` after code changes (no API cost).
+- 435 nodes · 1008 edges · 20 communities (16 shown, 4 thin omitted)
+- Extraction: 81% EXTRACTED · 19% INFERRED · 0% AMBIGUOUS · INFERRED: 187 edges (avg confidence: 0.81)
+- Token cost: 0 input · 68,889 output
 
 ## Community Hubs (Navigation)
 - CLI Entry Point & Arguments
@@ -40,7 +34,7 @@
 1. `AvroTypeInfo` - 63 edges
 2. `OpenApiToAvroTypeMapper` - 32 edges
 3. `SchemaGenerator` - 27 edges
-4. `OpenApiToAvroConverter` - 25 edges
+4. `OpenApiToAvroConverter` - 24 edges
 5. `JSON/OpenAPI → Avro Converter Architecture Diagram` - 19 edges
 6. `ConverterCli` - 18 edges
 7. `TypeInferenceEngine` - 18 edges
@@ -49,8 +43,6 @@
 10. `OpenApiParser` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Address (street, city, zipCode pattern)` --semantically_similar_to--> `Address (shared ref: used by Customer, Payment, PurchaseOrder x2, Supplier, Warehouse; references GeoPoint)`  [INFERRED] [semantically similar]
-  test-openapi-requestbody.yaml → test-openapi-refs.yaml
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `JsonToAvroConverter`  [EXTRACTED]
   docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/JsonToAvroConverter.java
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `RegistrySchemaGenerator`  [EXTRACTED]
@@ -59,6 +51,8 @@
   src/main/java/com/shanks/converter/SchemaFileWriter.java → docs/diagrams/converter-architecture.drawio.png
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `SchemaGenerator`  [EXTRACTED]
   docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/SchemaGenerator.java
+- `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `TypeInferenceEngine`  [EXTRACTED]
+  docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/TypeInferenceEngine.java
 
 ## Import Cycles
 - None detected.
@@ -75,35 +69,35 @@
 
 ### Community 0 - "CLI Entry Point & Arguments"
 Cohesion: 0.07
-Nodes (12): .avsc output schema file, JSON/OpenAPI → Avro Converter Architecture Diagram, Operation, PathItem, App, CliArguments, Override, ConverterCli (+4 more)
+Nodes (14): .avsc output schema file, JSON/OpenAPI → Avro Converter Architecture Diagram, Operation, PathItem, App, CliArguments, Override, ConverterCli (+6 more)
 
 ### Community 1 - "Registry Schema Generation"
-Cohesion: 0.15
-Nodes (12): JsonType, ARRAY, BOOLEAN, DOUBLE, ENUM, FLOAT, INTEGER, LONG (+4 more)
+Cohesion: 0.09
+Nodes (7): RegistrySchemaGenerator, Schema, SchemaGenerator, AvroTypeInfo, Builder, Override, Type
 
 ### Community 2 - "JSON-to-Avro Conversion Core"
-Cohesion: 0.12
-Nodes (8): JsonNode, TypeDetector, ObjectMapper, Schema, JsonToAvroConverter, JsonNode, Type, TypeInferenceEngine
+Cohesion: 0.08
+Nodes (20): JsonNode, TypeDetector, ObjectMapper, Schema, JsonToAvroConverter, JsonNode, Type, TypeInferenceEngine (+12 more)
 
 ### Community 3 - "OpenAPI Type Mapping"
-Cohesion: 0.08
-Nodes (13): ArraySchema, RegistrySchemaGenerator, OpenAPI, Pattern, Schema, OpenApiToAvroTypeMapper, AvroTypeInfo, Builder (+5 more)
+Cohesion: 0.16
+Nodes (8): ArraySchema, OpenAPI, Pattern, Schema, OpenApiToAvroTypeMapper, BeforeEach, Test, OpenApiToAvroTypeMapperTest
 
 ### Community 4 - "Ref Chaining Test Fixtures"
-Cohesion: 0.07
-Nodes (33): CardType (enum: DEBIT, CREDIT, PREPAID), Test API - Complete Type Coverage (test-openapi.yaml), ContactInfo (phoneNumber pattern, zipCode pattern, username pattern), Coordinates (latitude, longitude), CreditCard (number, cvv, expiry, type ref to CardType), Job (title, company, salary, startDate, isRemote), Location (street/city/state/country/zip + coordinates ref), Name (first, middle, last) (+25 more)
+Cohesion: 0.08
+Nodes (33): ContactInfo (phoneNumber pattern, zipCode pattern, username pattern), Address (shared ref: used by Customer, Payment, PurchaseOrder x2, Supplier, Warehouse; references GeoPoint), Catalog (references Product/Supplier), ContactInfo (phone pattern, email, website), Customer (references Address, LoyaltyTier), Dimensions (width/height/depth/weightKg/unit enum inline), Discount (references DiscountType), DiscountType (enum, defined last of all) (+25 more)
 
 ### Community 5 - "Project Documentation Concepts"
 Cohesion: 0.08
 Nodes (32): avro-maven-plugin, OpenAPI/JSON to Avro Converter Tool, Doc Mode (--doc), --from-request-body Flag, Functional Perimeter (--functional-perimeter), Graphify Knowledge Graph Integration, can't redefine Compile Error Behaviour, Hierarchical Namespace Strategy (+24 more)
 
 ### Community 6 - "Avro Sample JSON Generation"
-Cohesion: 0.14
-Nodes (9): AvroJsonGenerator, ObjectMapper, Schema, Schema, SchemaLoader, AvroJsonGeneratorTest, BeforeEach, ObjectMapper (+1 more)
+Cohesion: 0.18
+Nodes (7): AvroJsonGenerator, ObjectMapper, Schema, AvroJsonGeneratorTest, BeforeEach, ObjectMapper, Test
 
 ### Community 7 - "Doc Mode & Schema Doc Fields"
-Cohesion: 0.15
-Nodes (8): Schema, SchemaGenerator, BeforeEach, Test, SchemaGeneratorDocTest, BeforeEach, Test, SchemaGeneratorPatternTest
+Cohesion: 0.17
+Nodes (6): BeforeEach, Test, SchemaGeneratorDocTest, BeforeEach, Test, SchemaGeneratorPatternTest
 
 ### Community 8 - "Enum Detection"
 Cohesion: 0.18
@@ -122,12 +116,12 @@ Cohesion: 0.24
 Nodes (6): GenericRecord, AvroBinaryEncoder, Schema, AvroBinaryEncoderTest, BeforeEach, Test
 
 ### Community 12 - "General OpenAPI Test Fixtures"
-Cohesion: 0.22
-Nodes (13): Address (street, city, zipCode pattern), POST /orders/{orderId}/cancel — no operationId, tests path/method fallback naming (OrdersOrderIdCancelPost), POST /users createUser — requestBody=CreateUserRequest, 201 response=User, CreateUserRequest (references Profile, UserRole), POST /tasks/{taskId}/status getTaskStatus — inline requestBody with nested $ref field (response: CreateUserRequest), GET /users listUsers — 200 response=array of User, Order (billingAddress/shippingAddress both reference Address), Profile (references Address) (+5 more)
+Cohesion: 0.17
+Nodes (13): CardType (enum: DEBIT, CREDIT, PREPAID), Test API - Complete Type Coverage (test-openapi.yaml), Coordinates (latitude, longitude), CreditCard (number, cvv, expiry, type ref to CardType), Job (title, company, salary, startDate, isRemote), Location (street/city/state/country/zip + coordinates ref), Name (first, middle, last), ResultResponse (root response schema wrapping User array) (+5 more)
 
 ### Community 13 - "Notif Envelope Generation"
-Cohesion: 0.23
-Nodes (7): JsonNode, ObjectMapper, NotifWrapperGenerator, JsonNode, ObjectMapper, Test, NotifWrapperGeneratorTest
+Cohesion: 0.44
+Nodes (4): ObjectNode, JsonNode, ObjectMapper, NotifWrapperGenerator
 
 ### Community 14 - "Deep Nesting Test Fixtures"
 Cohesion: 0.29
@@ -159,11 +153,11 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: calls) - confidence is low._
 - **What is the exact relationship between `OpenAPI/JSON to Avro Converter Tool` and `serializer/ package (JSON example + binary encoding)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `JSON/OpenAPI → Avro Converter Architecture Diagram` connect `CLI Entry Point & Arguments` to `Registry Schema Generation`, `JSON-to-Avro Conversion Core`, `OpenAPI Type Mapping`, `Avro Sample JSON Generation`, `Doc Mode & Schema Doc Fields`, `Enum Detection`, `UUID Detection`, `OpenAPI Parsing`, `Avro Binary Encoding`?**
-  _High betweenness centrality (0.279) - this node is a cross-community bridge._
-- **Why does `AvroTypeInfo` connect `OpenAPI Type Mapping` to `CLI Entry Point & Arguments`, `JSON-to-Avro Conversion Core`, `Doc Mode & Schema Doc Fields`?**
-  _High betweenness centrality (0.141) - this node is a cross-community bridge._
+- **Why does `JSON/OpenAPI → Avro Converter Architecture Diagram` connect `CLI Entry Point & Arguments` to `Registry Schema Generation`, `JSON-to-Avro Conversion Core`, `OpenAPI Type Mapping`, `Avro Sample JSON Generation`, `Enum Detection`, `UUID Detection`, `OpenAPI Parsing`, `Avro Binary Encoding`?**
+  _High betweenness centrality (0.280) - this node is a cross-community bridge._
+- **Why does `AvroTypeInfo` connect `Registry Schema Generation` to `CLI Entry Point & Arguments`, `JSON-to-Avro Conversion Core`, `OpenAPI Type Mapping`, `Doc Mode & Schema Doc Fields`?**
+  _High betweenness centrality (0.146) - this node is a cross-community bridge._
 - **Why does `UuidDetector` connect `UUID Detection` to `CLI Entry Point & Arguments`, `Enum Detection`, `JSON-to-Avro Conversion Core`, `OpenAPI Type Mapping`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+  _High betweenness centrality (0.090) - this node is a cross-community bridge._
 - **What connects `com.shanks:demo`, `NULL`, `BOOLEAN` to the rest of the system?**
   _46 weakly-connected nodes found - possible documentation gaps or missing edges._
