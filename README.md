@@ -2,6 +2,30 @@
 
 Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **OpenAPI/Swagger** ou de données **JSON**, puis génère automatiquement les classes Java correspondantes.
 
+## Sommaire
+
+- [OpenAPI/JSON to Avro Converter + Java Code Generator](#openapijson-to-avro-converter--java-code-generator)
+  - [Sommaire](#sommaire)
+  - [En bref (pour tout le monde)](#en-bref-pour-tout-le-monde)
+  - [Fonctionnalités clés](#fonctionnalités-clés)
+  - [🚀 Quick Start](#-quick-start)
+    - [Prérequis](#prérequis)
+    - [Installation](#installation)
+    - [Utilisation](#utilisation)
+  - [📖 Documentation Détaillée](#-documentation-détaillée)
+    - [OpenAPI/Swagger → Avro](#openapiswagger--avro)
+    - [JSON → Avro](#json--avro)
+    - [📬 Enveloppe `notif` (`.webhook.avsc`)](#-enveloppe-notif-webhookavsc)
+    - [Avro Schema → JSON + Binaire](#avro-schema--json--binaire)
+    - [Avro → Java (Maven Plugin)](#avro--java-maven-plugin)
+  - [🏗️ Architecture](#️-architecture)
+  - [🧪 Tests](#-tests)
+  - [🔧 Dépendances](#-dépendances)
+  - [📝 Exemples Rapides](#-exemples-rapides)
+  - [🐛 Troubleshooting](#-troubleshooting)
+  - [📄 License](#-license)
+
+<a id="en-bref"></a>
 ## En bref (pour tout le monde)
 
 **Le problème :** quand une équipe échange des données via Kafka (ou tout système basé sur des schémas), le schéma Avro doit rester parfaitement synchronisé avec le contrat d'API (OpenAPI) ou avec la structure réelle des données. Écrire et maintenir ces schémas à la main est source d'erreurs et de dérive entre la doc d'API et ce qui circule réellement sur le bus de messages.
@@ -14,6 +38,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
 
 **Ce que ça ne fait pas :** ce n'est pas un serveur, pas un client Kafka — c'est un outil de conversion de schémas, exécuté en local ou en CI/CD, dont la sortie (fichiers `.avsc` / classes Java) est ensuite utilisée par vos applications.
 
+<a id="fonctionnalites-cles"></a>
 ## Fonctionnalités clés
 
 - 🔄 **OpenAPI/Swagger → Avro** : conversion de specs API en schémas Avro
@@ -23,12 +48,15 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
 - 📄 **Minification** : génération automatique d'une version one-line (`.min.avsc`) pour chaque schéma
 - 📬 **Enveloppe `notif`** : génération automatique d'un fichier consolidé (`.webhook.avsc`) qui embarque le schéma dans une enveloppe `notif` (header + payload) — l'enveloppe elle-même est un template JSON interchangeable (`--envelope <nom>`), pas une structure figée
 
+<a id="quick-start"></a>
 ## 🚀 Quick Start
 
+<a id="prerequis"></a>
 ### Prérequis
 - Java 21+
 - Maven 3.6+
 
+<a id="installation"></a>
 ### Installation
 
 ```bash
@@ -38,6 +66,7 @@ mvn clean package
 # Génère le Fat JAR: target/json-to-avro-converter.jar
 ```
 
+<a id="utilisation"></a>
 ### Utilisation
 
 ```bash
@@ -71,10 +100,12 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 | `<nom>.min.avsc` | Copie minifiée en une seule ligne du même schéma |
 | `<nom>.webhook.avsc` | Le schéma consolidé dans un template d'enveloppe `notif` (voir [section dédiée](#-enveloppe-notif-webhookavsc)) |
 
+<a id="documentation-detaillee"></a>
 ## 📖 Documentation Détaillée
 
 [Diagramme d'architecture](./docs/diagrams/converter-architecture.drawio.png)
 
+<a id="openapi-vers-avro"></a>
 ### OpenAPI/Swagger → Avro
 
 **Fonctionnalités clés:**
@@ -158,6 +189,7 @@ java -jar target/json-to-avro-converter.jar api.yaml Cancel.avsc --from-request-
 
 > ⚠️ Les types numériques et date/heure sont **volontairement mappés en `string`**, pour éviter toute perte de précision et simplifier la compatibilité entre systèmes. Ce n'est pas un bug : c'est un choix de conception assumé.
 
+<a id="json-vers-avro"></a>
 ### JSON → Avro
 
 **Détection automatique:**
@@ -174,6 +206,7 @@ java -jar target/json-to-avro-converter.jar data.json schema.avsc
 # → Génère schema.avsc (formaté) + schema.min.avsc (one-line) + schema.webhook.avsc (enveloppe notif)
 ```
 
+<a id="enveloppe-notif"></a>
 ### 📬 Enveloppe `notif` (`.webhook.avsc`)
 
 Chaque conversion (JSON→Avro ou OpenAPI→Avro, tous modes confondus) génère systématiquement, en plus de `<nom>.avsc` et `<nom>.min.avsc`, un troisième fichier `<nom>.webhook.avsc` qui consolide le schéma généré dans une enveloppe `notif`.
@@ -210,6 +243,7 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope m
 # → Même chose, mais User.webhook.avsc utilise le template "minimal" (payload à la racine)
 ```
 
+<a id="avro-vers-json-binaire"></a>
 ### Avro Schema → JSON + Binaire
 
 **Deux sous-commandes** pour générer du JSON et des trames binaires Avro à partir de schémas :
@@ -239,6 +273,7 @@ java -jar target/json-to-avro-converter.jar encode src/main/avro/User.avsc --gen
 - `timestamp-millis` → timestamp courant
 - unions `["null", T]` → valeur non-null wrappée (format Avro JSON encoding)
 
+<a id="avro-vers-java"></a>
 ### Avro → Java (Maven Plugin)
 
 **Structure:**
@@ -293,6 +328,7 @@ Le plugin est déjà configuré dans `pom.xml` avec:
 - Builder pattern automatique
 - Support des logical types (UUID → `java.util.UUID`)
 
+<a id="architecture"></a>
 ## 🏗️ Architecture
 
 ```
@@ -313,12 +349,14 @@ target/generated-sources/avro/  # Classes Java générées
 
 **Stratégie de namespace :** chaque type nommé (record ou enum) reçoit un namespace hiérarchique qui encode sa position dans l'arbre du schéma (`parentNamespace.parentRecordName`), ce qui garantit des noms uniques même quand un même nom de type (ex: `Address`) apparaît à plusieurs endroits du schéma — sans quoi `mvn compile` échouerait avec une erreur `can't redefine`.
 
+<a id="tests"></a>
 ## 🧪 Tests
 
 ```bash
 mvn test  # tests unitaires (JUnit 5 + AssertJ)
 ```
 
+<a id="dependances"></a>
 ## 🔧 Dépendances
 
 - Apache Avro 1.11.3
@@ -326,6 +364,7 @@ mvn test  # tests unitaires (JUnit 5 + AssertJ)
 - Swagger Parser 2.1.22 (OpenAPI)
 - avro-maven-plugin 1.11.3
 
+<a id="exemples-rapides"></a>
 ## 📝 Exemples Rapides
 
 **Mode Registry vs Standard (OpenAPI):**
@@ -369,6 +408,7 @@ java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc Cr
 ```
 → Détecte automatiquement: UUID (logical type), ENUM (patterns UPPER_CASE)
 
+<a id="troubleshooting"></a>
 ## 🐛 Troubleshooting
 
 **NoClassDefFoundError:** Utilisez le Fat JAR `json-to-avro-converter.jar`, pas `demo-1.0-SNAPSHOT.jar`
@@ -379,6 +419,7 @@ java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc Cr
 
 **Erreur `can't redefine` à la compilation :** deux fichiers `.avsc` définissent un type avec le même nom complet (namespace + nom). Vérifiez que chaque schéma généré utilise bien un namespace distinct (voir [Stratégie de namespace](#️-architecture)), ou passez `--functional-perimeter` pour isoler les domaines.
 
+<a id="license"></a>
 ## 📄 License
 
 Usage éducatif et professionnel.
