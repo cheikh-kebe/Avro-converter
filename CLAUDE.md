@@ -56,6 +56,9 @@ java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --functiona
 # Run JAR with a non-default notif envelope template (src/main/resources/envelopes/<name>.json)
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope minimal
 
+# Run JAR showing the full Java stack trace on unexpected errors (hidden by default)
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --stacktrace
+
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
 
@@ -112,7 +115,7 @@ This is a converter tool that supports:
   - Recommended for schema registry use cases
   - Single top-level `record` type (not a JSON array)
   - Nested types embedded inline at first occurrence, referenced by full qualified name on subsequent uses
-  - Deduplication tracked via `definedTypes` set (full name = `namespace.name`)
+  - Both modes build through the same `AvroSchemaBuilder` (real `org.apache.avro.Schema` objects) and only differ in which thin wrapper serializes the result — dedup and naming validation are therefore identical in both modes (see [Avro Name Validation](#avro-name-validation))
 - **Doc Mode** (`--doc`): Includes `doc` fields in the generated Avro schema, extracted from OpenAPI `description` fields
   - Can be combined with any other mode (e.g., `--registry --doc`)
   - Off by default: without this flag, no `doc` fields are included
@@ -319,10 +322,20 @@ Both `Address` records exist at different hierarchy positions and have different
 ### $ref Handling
 
 - **Forward refs**: SwaggerParser resolves the entire OpenAPI file before conversion — `$ref` to schemas defined later in the file are transparent.
-- **Same `$ref` at the same level** (e.g., `shippingAddress` and `billingAddress` both referencing `Address`):
-  - Standard mode: `schema.toString(true)` deduplicates via a shared `Names` context — second occurrence emits a name string reference
-  - Registry mode: `definedTypes` set tracks emitted full names — second occurrence emits `"com.shanks.generated.Address"`
+- **Same `$ref` at the same level** (e.g., `shippingAddress` and `billingAddress` both referencing `Address`): both modes build real `Schema` objects via `AvroSchemaBuilder`, then serialize with `schema.toString(true)` — Avro's own `Names` context deduplicates by full name automatically (first occurrence inline, second occurrence emits `"com.shanks.generated.Address"`). This is identical in Standard and Registry mode; neither hand-rolls its own dedup tracking anymore.
 - **Same `$ref` at different levels**: each occurrence gets a different hierarchical namespace, so each is a distinct named type with no conflict
+
+### Avro Name Validation
+
+`AvroSchemaBuilder` (`src/main/java/com/shanks/converter/AvroSchemaBuilder.java`) is the single place that turns mapped/inferred type information into real `org.apache.avro.Schema` objects, for **both** Standard Mode and Registry Mode — `SchemaGenerator` and `RegistrySchemaGenerator` are thin wrappers around it that only differ in serialization (`schema.toString(true)` either way). Because there is exactly one construction path, Avro's naming rule (`[A-Za-z_][A-Za-z0-9_]*`, i.e. a value must start with a letter or underscore) is enforced identically in both modes for:
+- record names
+- field names
+- enum names
+- enum symbols
+
+Before calling `Schema.createRecord` / `Schema.createEnum`, `AvroSchemaBuilder` pre-validates each of the above and throws `AvroSchemaValidationException` with a human-readable message (offending value, its full-name context, the rule, and a fix hint) instead of letting a raw `SchemaParseException` surface. `Schema.createRecord`/`Schema.createEnum` are still called and wrapped in a try/catch as a safety net for any Avro rule not pre-validated above.
+
+**CLI error output** (`ConverterCli.run`): `AvroSchemaValidationException` is caught separately and printed without a Java stack trace (the message is already actionable). Any other unexpected exception prints a short message and hides the stack trace by default — pass `--stacktrace` to print it in full. This applies to any conversion command (JSON or OpenAPI, either mode).
 
 ### Known Namespace Behaviour
 
@@ -354,8 +367,10 @@ The project follows SOLID principles with separate packages for:
 - `converter/`: Conversion orchestration
   - `JsonToAvroConverter`: JSON → Avro schema conversion
   - `OpenApiToAvroConverter`: OpenAPI → Avro schema conversion
-  - `SchemaGenerator`: Standard mode (inline types)
-  - `RegistrySchemaGenerator`: Registry mode (single self-contained schema for IBM/Confluent Schema Registry)
+  - `AvroSchemaBuilder`: shared `AvroTypeInfo` → `org.apache.avro.Schema` construction, used by both modes below (see [Avro Name Validation](#avro-name-validation))
+  - `SchemaGenerator`: Standard mode (inline types) — thin wrapper over `AvroSchemaBuilder`
+  - `RegistrySchemaGenerator`: Registry mode (single self-contained schema for IBM/Confluent Schema Registry) — thin wrapper over `AvroSchemaBuilder`
+  - `AvroSchemaValidationException`: thrown for invalid Avro names/symbols, carries a human-readable message shown as-is by the CLI
 - `cli/`: Command-line interface
   - `ConverterCli`: Main CLI orchestrator
   - `CliArguments`: Arguments parser for schema generation

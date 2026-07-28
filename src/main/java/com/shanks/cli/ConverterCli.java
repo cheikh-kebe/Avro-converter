@@ -1,5 +1,6 @@
 package com.shanks.cli;
 
+import com.shanks.converter.AvroSchemaValidationException;
 import com.shanks.converter.JsonToAvroConverter;
 import com.shanks.converter.OpenApiToAvroConverter;
 import com.shanks.serializer.AvroBinaryEncoder;
@@ -55,6 +56,8 @@ public class ConverterCli {
      * @return exit code (0 for success, 1 for error)
      */
     public int run(String[] args) {
+        boolean showStackTrace = hasFlag(args, "--stacktrace");
+
         try {
             if (args != null && args.length > 0) {
                 String command = args[0];
@@ -74,9 +77,20 @@ public class ConverterCli {
             printUsage();
             return 1;
 
+        } catch (AvroSchemaValidationException e) {
+            System.err.println("Error: " + e.getMessage());
+            if (showStackTrace) {
+                e.printStackTrace();
+            }
+            return 1;
+
         } catch (Exception e) {
             System.err.println("Error during operation: " + e.getMessage());
-            e.printStackTrace();
+            if (showStackTrace) {
+                e.printStackTrace();
+            } else {
+                System.err.println("(run with --stacktrace for the full Java stack trace)");
+            }
             return 1;
         }
     }
@@ -364,8 +378,10 @@ public class ConverterCli {
         System.err.println("  encode <schema.avsc> --generate <output.avro> [SchemaName]");
         System.err.println();
         System.err.println("Convert usage (default):");
-        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>]");
-        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>]");
+        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
+        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
+        System.err.println();
+        System.err.println("  --stacktrace  Print the full Java stack trace on unexpected errors (hidden by default)");
         System.err.println();
         System.err.println("Examples:");
         System.err.println("  # Generate sample JSON from Avro schema");

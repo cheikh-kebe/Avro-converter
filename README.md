@@ -14,6 +14,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
     - [Utilisation](#utilisation)
   - [📖 Documentation Détaillée](#-documentation-détaillée)
     - [OpenAPI/Swagger → Avro](#openapiswagger--avro)
+    - [✅ Validation Avro \& erreurs lisibles](#-validation-avro--erreurs-lisibles)
     - [JSON → Avro](#json--avro)
     - [📬 Enveloppe `notif` (`.webhook.avsc`)](#-enveloppe-notif-webhookavsc)
     - [Avro Schema → JSON + Binaire](#avro-schema--json--binaire)
@@ -47,6 +48,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
 - 📦 **Avro → JSON → Binaire** : génération de JSON exemple et encodage en trame binaire Avro
 - 📄 **Minification** : génération automatique d'une version one-line (`.min.avsc`) pour chaque schéma
 - 📬 **Enveloppe `notif`** : génération automatique d'un fichier consolidé (`.webhook.avsc`) qui embarque le schéma dans une enveloppe `notif` (header + payload) — l'enveloppe elle-même est un template JSON interchangeable (`--envelope <nom>`), pas une structure figée
+- ✅ **Validation Avro stricte** : noms de records/champs/enums et symboles d'enum invalides détectés à la conversion, avec un message lisible (pas une stacktrace) — identique en mode standard et en mode registry, voir [section dédiée](#-validation-avro--erreurs-lisibles)
 
 <a id="quick-start"></a>
 ## 🚀 Quick Start
@@ -188,6 +190,31 @@ java -jar target/json-to-avro-converter.jar api.yaml Cancel.avsc --from-request-
 | valeurs d'enum | — | `enum` |
 
 > ⚠️ Les types numériques et date/heure sont **volontairement mappés en `string`**, pour éviter toute perte de précision et simplifier la compatibilité entre systèmes. Ce n'est pas un bug : c'est un choix de conception assumé.
+
+<a id="validation-avro"></a>
+### ✅ Validation Avro & erreurs lisibles
+
+Les noms de records, de champs, d'enums et les symboles d'enum doivent respecter la règle de nommage Avro (`[A-Za-z_][A-Za-z0-9_]*` — commencer par une lettre ou un underscore). Cette validation est effectuée **avant** l'écriture des fichiers de sortie, et de façon **strictement identique en mode standard et en mode registry** — les deux modes construisent le schéma via le même composant interne (`AvroSchemaBuilder`), donc un schéma invalide échoue de la même manière quel que soit le mode utilisé.
+
+Concrètement, une valeur d'enum comme `"1RED"` (spec OpenAPI) fait échouer la conversion avec un message explicite plutôt qu'une stacktrace Java :
+
+```
+Error: Invalid Avro enum symbol
+
+  Value:   "1RED"
+  Where:   enum com.shanks.generated.creditcard.CardType
+  Reason:  Avro names must start with a letter or underscore, and contain only
+           letters, digits, and underscores (rule: [A-Za-z_][A-Za-z0-9_]*)
+
+  Fix: rename this value in your OpenAPI/JSON source.
+```
+
+- Cette validation couvre : nom de record, nom de champ, nom d'enum, symbole d'enum.
+- Pour toute autre erreur inattendue (bug, fichier illisible, etc.), la stacktrace Java complète est masquée par défaut. Ajoutez `--stacktrace` pour l'afficher :
+  ```bash
+  java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --stacktrace
+  ```
+- Intérêt pour le mode registry : les erreurs qu'un vrai schema registry (IBM/Confluent) rejetterait à la publication sont désormais détectées ici, à la conversion.
 
 <a id="json-vers-avro"></a>
 ### JSON → Avro
@@ -418,6 +445,8 @@ java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc Cr
 **IDE ne voit pas les classes:** Recharger le projet Maven (IntelliJ: Maven → Reload)
 
 **Erreur `can't redefine` à la compilation :** deux fichiers `.avsc` définissent un type avec le même nom complet (namespace + nom). Vérifiez que chaque schéma généré utilise bien un namespace distinct (voir [Stratégie de namespace](#️-architecture)), ou passez `--functional-perimeter` pour isoler les domaines.
+
+**`Error: Invalid Avro enum symbol` / `Invalid Avro record name` / `Invalid Avro field name` à la conversion :** un nom ou une valeur d'enum de votre spec OpenAPI (ou de vos données JSON) ne respecte pas la règle de nommage Avro (`[A-Za-z_][A-Za-z0-9_]*` — doit commencer par une lettre ou un underscore, ex: `"1RED"` est invalide). Renommez la valeur fautive à la source ; voir [Validation Avro & erreurs lisibles](#-validation-avro--erreurs-lisibles). Pour voir la stacktrace Java complète en cas d'erreur inattendue, ajoutez `--stacktrace`.
 
 <a id="license"></a>
 ## 📄 License
