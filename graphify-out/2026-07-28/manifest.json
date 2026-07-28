@@ -15,8 +15,8 @@
     "semantic_hash": "76032b3533ac7d3369d61348df98fe57"
   },
   "src/main/java/com/shanks/cli/ConverterCli.java": {
-    "mtime": 1785267072.231937,
-    "ast_hash": "0988809f46159a8546ba178db3d6e038",
+    "mtime": 1785048833.0272448,
+    "ast_hash": "a2c6131e2df9eac74f403a96f82a9777",
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/JsonToAvroConverter.java": {
@@ -150,13 +150,13 @@
     "semantic_hash": "0756adb637464cc4bcf145fd6af30b65"
   },
   "CLAUDE.md": {
-    "mtime": 1785268598.4823108,
-    "ast_hash": "ba8479739fd1fb34364acb37ccd67728",
+    "mtime": 1785057122.065161,
+    "ast_hash": "a9748c2cbcca02f32623f62bb3377e17",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1785268641.0726273,
-    "ast_hash": "1b1213955b815b8e54bae144c8fef763",
+    "mtime": 1785058740.3556833,
+    "ast_hash": "417d9501dcb384fa4db3295c1dd8e18f",
     "semantic_hash": ""
   },
   "test-openapi-deep.yaml": {
@@ -210,23 +210,13 @@
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/AvroSchemaBuilder.java": {
-    "mtime": 1785267046.189153,
-    "ast_hash": "8116e0f26e0f56858f1747f43637395b",
+    "mtime": 1785265180.946363,
+    "ast_hash": "49911a3add287d9bf96157edc56e4be6",
     "semantic_hash": ""
   },
   "src/test/java/com/shanks/converter/RegistrySchemaGeneratorTest.java": {
-    "mtime": 1785267100.9288085,
-    "ast_hash": "b6bf2f6338d3bfb938cecc3a401be219",
-    "semantic_hash": ""
-  },
-  "src/main/java/com/shanks/converter/AvroSchemaValidationException.java": {
-    "mtime": 1785266975.6283243,
-    "ast_hash": "d53b1181a4dcfb58c0e2c1f2991e362c",
-    "semantic_hash": ""
-  },
-  "src/test/java/com/shanks/converter/AvroSchemaBuilderTest.java": {
-    "mtime": 1785267113.754866,
-    "ast_hash": "e8f9fd1afc6268f2a071890d0b564166",
+    "mtime": 1785265239.7700298,
+    "ast_hash": "71486d0831c26a863bf742c1b9e4c1b5",
     "semantic_hash": ""
   }
 }
