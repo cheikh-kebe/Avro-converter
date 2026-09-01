@@ -2,7 +2,6 @@ package com.shanks.mapper;
 
 import com.shanks.model.AvroTypeInfo;
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.Schema;
 import org.apache.avro.Schema.Type;
 
@@ -54,7 +53,7 @@ public class OpenApiToAvroTypeMapper {
             return mapEnum(schema, fieldName);
         }
 
-        String type = schema.getType();
+        String type = resolveType(schema);
         String format = schema.getFormat();
         String description = schema.getDescription();
 
@@ -79,7 +78,7 @@ public class OpenApiToAvroTypeMapper {
                 }
                 return boolBuilder.build();
             case "array":
-                return mapArrayType((ArraySchema) schema, fieldName);
+                return mapArrayType(schema, fieldName);
             case "object":
                 return mapObjectType(schema, fieldName);
             default:
@@ -159,9 +158,29 @@ public class OpenApiToAvroTypeMapper {
     }
 
     /**
+     * Resolve the schema type, handling both OpenAPI 3.0 ({@code type: object}) and
+     * OpenAPI 3.1, where swagger-parser exposes the type as a JSON Schema set via
+     * {@link Schema#getTypes()} and leaves {@link Schema#getType()} null.
+     */
+    private String resolveType(Schema<?> schema) {
+        if (schema.getType() != null) {
+            return schema.getType();
+        }
+        Set<String> types = schema.getTypes();
+        if (types != null) {
+            for (String t : types) {
+                if (t != null && !"null".equalsIgnoreCase(t)) {
+                    return t;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Map array type.
      */
-    private AvroTypeInfo mapArrayType(ArraySchema arraySchema, String fieldName) {
+    private AvroTypeInfo mapArrayType(Schema<?> arraySchema, String fieldName) {
         Schema<?> items = arraySchema.getItems();
         AvroTypeInfo itemType = mapSchema(items, fieldName);
 

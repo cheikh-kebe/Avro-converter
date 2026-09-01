@@ -1,6 +1,7 @@
 {
   "0": "CLI Entry Point & Arguments",
   "1": "Registry Schema Generation",
+  "2": "JSON-to-Avro Conversion Core",
   "3": "OpenAPI Type Mapping",
   "4": "Ref Chaining Test Fixtures",
   "5": "Project Documentation Concepts",

@@ -30,8 +30,8 @@
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/OpenApiToAvroConverter.java": {
-    "mtime": 1788290415.727855,
-    "ast_hash": "d6f16b6e1969d901883c13af5c6fad95",
+    "mtime": 1785048798.2172074,
+    "ast_hash": "4762e4eb81d3b136d203914942c03bee",
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/RegistrySchemaGenerator.java": {
@@ -60,9 +60,9 @@
     "semantic_hash": "752fba1011936c85306b5a1181fdb1a0"
   },
   "src/main/java/com/shanks/mapper/OpenApiToAvroTypeMapper.java": {
-    "mtime": 1788290879.6050003,
-    "ast_hash": "cd7de075a5857ad5d6d8caed55977da9",
-    "semantic_hash": ""
+    "mtime": 1785008409.0597332,
+    "ast_hash": "284d3e41d4db6dc7fd05c02fadfc653f",
+    "semantic_hash": "284d3e41d4db6dc7fd05c02fadfc653f"
   },
   "src/main/java/com/shanks/model/AvroTypeInfo.java": {
     "mtime": 1785008363.4233444,
@@ -227,16 +227,6 @@
   "src/test/java/com/shanks/converter/AvroSchemaBuilderTest.java": {
     "mtime": 1785267113.754866,
     "ast_hash": "e8f9fd1afc6268f2a071890d0b564166",
-    "semantic_hash": ""
-  },
-  "src/test/java/com/shanks/converter/OpenApiToAvroConverterWebhookTest.java": {
-    "mtime": 1788290813.9977622,
-    "ast_hash": "7d46e71d3b9172571b557e8e11a8d93a",
-    "semantic_hash": ""
-  },
-  "test-openapi-webhooks.yaml": {
-    "mtime": 1788290807.3702068,
-    "ast_hash": "37093ec3f80a7d219c95534e357f0271",
     "semantic_hash": ""
   }
 }
