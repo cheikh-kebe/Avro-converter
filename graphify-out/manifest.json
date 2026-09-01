@@ -60,8 +60,8 @@
     "semantic_hash": "752fba1011936c85306b5a1181fdb1a0"
   },
   "src/main/java/com/shanks/mapper/OpenApiToAvroTypeMapper.java": {
-    "mtime": 1788290879.6050003,
-    "ast_hash": "cd7de075a5857ad5d6d8caed55977da9",
+    "mtime": 1788291500.7354424,
+    "ast_hash": "5d10d9d283dd13838efcd639e9864a79",
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/model/AvroTypeInfo.java": {
@@ -230,13 +230,13 @@
     "semantic_hash": ""
   },
   "src/test/java/com/shanks/converter/OpenApiToAvroConverterWebhookTest.java": {
-    "mtime": 1788290813.9977622,
-    "ast_hash": "7d46e71d3b9172571b557e8e11a8d93a",
+    "mtime": 1788291512.8804684,
+    "ast_hash": "1c893d55bcb51ce4cb92153f6e51610b",
     "semantic_hash": ""
   },
   "test-openapi-webhooks.yaml": {
-    "mtime": 1788290807.3702068,
-    "ast_hash": "37093ec3f80a7d219c95534e357f0271",
+    "mtime": 1788291505.1049008,
+    "ast_hash": "82e5ea890489b304bbc9fe2f8d94f3c2",
     "semantic_hash": ""
   }
 }

@@ -25,4 +25,20 @@ class OpenApiToAvroConverterWebhookTest {
         assertThat(content).contains("\"name\" : \"email\"");
         assertThat(content).contains("\"name\" : \"displayName\"");
     }
+
+    @Test
+    void convertAll_mapsAnyOfOptionalChildRecordAsNullableRecord(@TempDir Path outDir) throws IOException {
+        OpenApiToAvroConverter converter = new OpenApiToAvroConverter();
+
+        converter.convertAll("test-openapi-webhooks.yaml", outDir.toString());
+
+        String content = Files.readString(outDir.resolve("OnNewUser.avsc"));
+
+        // profile: anyOf: [ {$ref: Profile}, {type: "null"} ] -> ["null", <Profile record>]
+        assertThat(content).contains("\"name\" : \"profile\"");
+        assertThat(content).contains("\"name\" : \"Profile\"");
+        assertThat(content).contains("\"name\" : \"bio\"");
+        // it must be a nullable union, not a bare "string"
+        assertThat(content).doesNotContain("\"name\" : \"profile\",\n      \"type\" : \"string\"");
+    }
 }

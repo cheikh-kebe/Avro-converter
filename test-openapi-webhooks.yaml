@@ -34,3 +34,16 @@ components:
           format: email
         displayName:
           type: string
+        profile:
+          description: Optional profile, present only for verified users.
+          anyOf:
+            - $ref: '#/components/schemas/Profile'
+            - type: "null"
+    Profile:
+      type: object
+      description: Extended profile information.
+      properties:
+        bio:
+          type: string
+        website:
+          type: string
