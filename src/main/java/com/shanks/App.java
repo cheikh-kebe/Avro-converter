@@ -10,6 +10,11 @@ import com.shanks.cli.ConverterCli;
  */
 public class App {
 
+    /**
+     * Entry point: delegates to {@link ConverterCli} and exits with its return code.
+     *
+     * @param args command-line arguments (see {@link ConverterCli#run})
+     */
     public static void main(String[] args) {
         ConverterCli cli = new ConverterCli();
         int exitCode = cli.run(args);

@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "Notif",
+  "namespace": "${namespace}",
+  "fields": [
+    {
+      "name": "payload",
+      "type": "null"
+    }
+  ]
+}

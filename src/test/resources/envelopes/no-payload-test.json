@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "Notif",
+  "namespace": "${namespace}",
+  "fields": [
+    {
+      "name": "header",
+      "type": {
+        "type": "record",
+        "name": "Header",
+        "namespace": "${namespace}.notif",
+        "fields": []
+      }
+    }
+  ]
+}

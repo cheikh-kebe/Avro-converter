@@ -2,7 +2,6 @@ package com.shanks.mapper;
 
 import com.shanks.model.AvroTypeInfo;
 import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.media.ArraySchema;
 import io.swagger.v3.oas.models.media.Schema;
 import org.apache.avro.Schema.Type;
 
@@ -54,7 +53,16 @@ public class OpenApiToAvroTypeMapper {
             return mapEnum(schema, fieldName);
         }
 
-        String type = schema.getType();
+        // Handle anyOf / oneOf (e.g. an optional child record modelled in OpenAPI 3.1
+        // as anyOf: [ { $ref: Child }, { type: "null" } ])
+        if (schema.getAnyOf() != null && !schema.getAnyOf().isEmpty()) {
+            return mapComposedSchema(schema.getAnyOf(), fieldName);
+        }
+        if (schema.getOneOf() != null && !schema.getOneOf().isEmpty()) {
+            return mapComposedSchema(schema.getOneOf(), fieldName);
+        }
+
+        String type = resolveType(schema);
         String format = schema.getFormat();
         String description = schema.getDescription();
 
@@ -79,7 +87,7 @@ public class OpenApiToAvroTypeMapper {
                 }
                 return boolBuilder.build();
             case "array":
-                return mapArrayType((ArraySchema) schema, fieldName);
+                return mapArrayType(schema, fieldName);
             case "object":
                 return mapObjectType(schema, fieldName);
             default:
@@ -118,6 +126,7 @@ public class OpenApiToAvroTypeMapper {
         return builder.build();
     }
 
+    /** Map integer type to Avro string (avoids precision loss across int32/int64 formats). */
     private AvroTypeInfo mapIntegerType(String format, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
@@ -126,6 +135,7 @@ public class OpenApiToAvroTypeMapper {
         return builder.build();
     }
 
+    /** Map number type to Avro string (avoids precision loss across float/double formats). */
     private AvroTypeInfo mapNumberType(String format, String description) {
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder().avroType(Type.STRING);
         if (description != null && !description.isEmpty()) {
@@ -157,9 +167,78 @@ public class OpenApiToAvroTypeMapper {
     }
 
     /**
+     * Map an {@code anyOf} / {@code oneOf} branch list. A {@code {"type": "null"}}
+     * branch (OpenAPI 3.1's way of marking a child schema optional) makes the result
+     * nullable; the remaining branches collapse to a single type when there is only
+     * one, otherwise to a flat Avro union.
+     */
+    private AvroTypeInfo mapComposedSchema(List<Schema> branches, String fieldName) {
+        List<Schema<?>> valueBranches = new ArrayList<>();
+        boolean nullable = false;
+
+        for (Schema<?> branch : branches) {
+            if (branch == null) {
+                continue;
+            }
+            if (isNullBranch(branch)) {
+                nullable = true;
+            } else {
+                valueBranches.add(branch);
+            }
+        }
+
+        if (valueBranches.isEmpty()) {
+            return AvroTypeInfo.builder().avroType(Type.STRING).build();
+        }
+
+        if (valueBranches.size() == 1) {
+            AvroTypeInfo mapped = mapSchema(valueBranches.get(0), fieldName);
+            return nullable ? makeNullable(mapped) : mapped;
+        }
+
+        AvroTypeInfo.Builder union = AvroTypeInfo.builder().avroType(Type.UNION);
+        if (nullable) {
+            union.addUnionType(AvroTypeInfo.builder().avroType(Type.NULL).build());
+        }
+        for (Schema<?> branch : valueBranches) {
+            union.addUnionType(mapSchema(branch, fieldName));
+        }
+        return union.build();
+    }
+
+    /** True when a schema branch represents only the JSON {@code null} type. */
+    private boolean isNullBranch(Schema<?> branch) {
+        if ("null".equalsIgnoreCase(branch.getType())) {
+            return true;
+        }
+        Set<String> types = branch.getTypes();
+        return types != null && types.size() == 1 && types.contains("null");
+    }
+
+    /**
+     * Resolve the schema type, handling both OpenAPI 3.0 ({@code type: object}) and
+     * OpenAPI 3.1, where swagger-parser exposes the type as a JSON Schema set via
+     * {@link Schema#getTypes()} and leaves {@link Schema#getType()} null.
+     */
+    private String resolveType(Schema<?> schema) {
+        if (schema.getType() != null) {
+            return schema.getType();
+        }
+        Set<String> types = schema.getTypes();
+        if (types != null) {
+            for (String t : types) {
+                if (t != null && !"null".equalsIgnoreCase(t)) {
+                    return t;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Map array type.
      */
-    private AvroTypeInfo mapArrayType(ArraySchema arraySchema, String fieldName) {
+    private AvroTypeInfo mapArrayType(Schema<?> arraySchema, String fieldName) {
         Schema<?> items = arraySchema.getItems();
         AvroTypeInfo itemType = mapSchema(items, fieldName);
 
@@ -256,6 +335,24 @@ public class OpenApiToAvroTypeMapper {
      * Make a type nullable.
      */
     private AvroTypeInfo makeNullable(AvroTypeInfo typeInfo) {
+        // Already a union — merge null in rather than nesting unions (Avro forbids that).
+        if (typeInfo.getAvroType() == Type.UNION) {
+            boolean hasNull = typeInfo.getUnionTypes() != null && typeInfo.getUnionTypes().stream()
+                    .anyMatch(t -> t.getAvroType() == Type.NULL);
+            if (hasNull) {
+                return typeInfo;
+            }
+
+            AvroTypeInfo.Builder merged = AvroTypeInfo.builder()
+                    .avroType(Type.UNION)
+                    .addUnionType(AvroTypeInfo.builder().avroType(Type.NULL).build());
+            typeInfo.getUnionTypes().forEach(merged::addUnionType);
+            if (typeInfo.getDoc() != null) {
+                merged.doc(typeInfo.getDoc());
+            }
+            return merged.build();
+        }
+
         AvroTypeInfo.Builder builder = AvroTypeInfo.builder()
                 .avroType(Type.UNION)
                 .addUnionType(AvroTypeInfo.builder().avroType(Type.NULL).build())

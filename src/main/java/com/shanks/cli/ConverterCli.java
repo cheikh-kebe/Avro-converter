@@ -1,5 +1,6 @@
 package com.shanks.cli;
 
+import com.shanks.converter.AvroSchemaValidationException;
 import com.shanks.converter.JsonToAvroConverter;
 import com.shanks.converter.OpenApiToAvroConverter;
 import com.shanks.serializer.AvroBinaryEncoder;
@@ -55,6 +56,8 @@ public class ConverterCli {
      * @return exit code (0 for success, 1 for error)
      */
     public int run(String[] args) {
+        boolean showStackTrace = hasFlag(args, "--stacktrace");
+
         try {
             if (args != null && args.length > 0) {
                 String command = args[0];
@@ -74,9 +77,20 @@ public class ConverterCli {
             printUsage();
             return 1;
 
+        } catch (AvroSchemaValidationException e) {
+            System.err.println("Error: " + e.getMessage());
+            if (showStackTrace) {
+                e.printStackTrace();
+            }
+            return 1;
+
         } catch (Exception e) {
             System.err.println("Error during operation: " + e.getMessage());
-            e.printStackTrace();
+            if (showStackTrace) {
+                e.printStackTrace();
+            } else {
+                System.err.println("(run with --stacktrace for the full Java stack trace)");
+            }
             return 1;
         }
     }
@@ -168,6 +182,13 @@ public class ConverterCli {
         String inputPath = cliArgs.getInputJsonPath();
         String outputPath = cliArgs.getOutputAvscPath();
 
+        String envelopeName = getFlagValue(args, "--envelope");
+        if (envelopeName != null) {
+            System.out.println("  Envelope: " + envelopeName);
+            openApiConverter.setEnvelope(envelopeName);
+            jsonConverter.setEnvelope(envelopeName);
+        }
+
         if (isOpenApiFile(inputPath)) {
             System.out.println("Converting OpenAPI/Swagger to Avro schema...");
             System.out.println("  Input:  " + inputPath);
@@ -176,15 +197,43 @@ public class ConverterCli {
             // Check mode flags (scan all arguments for --registry and --doc)
             boolean registryMode = hasFlag(args, "--registry");
             boolean docMode = hasFlag(args, "--doc");
+            String functionalPerimeter = getFlagValue(args, "--functional-perimeter");
 
             if (docMode) {
                 System.out.println("  Doc:    Enabled (include descriptions as doc fields)");
                 openApiConverter.setIncludeDoc(true);
             }
 
-            // If args contains a schema name (3rd argument), convert specific schema
-            if (args.length >= 3 && !args[2].startsWith("--")) {
-                String schemaName = args[2];
+            if (functionalPerimeter != null) {
+                System.out.println("  Namespace: com.shanks.generated." + functionalPerimeter);
+                openApiConverter.setFunctionalPerimeter(functionalPerimeter);
+            }
+
+            // Locate --from-request-body anywhere in the arguments (it may be preceded
+            // by other flags such as --functional-perimeter).
+            int fromRequestBodyIndex = indexOfFlag(args, "--from-request-body");
+
+            // Remaining positional arguments after input/output paths, excluding recognized
+            // flags and their values, are treated as the schema name.
+            String schemaName = firstPositionalArgAfter(args, 2);
+
+            if (fromRequestBodyIndex >= 0) {
+                if (args.length < fromRequestBodyIndex + 3) {
+                    throw new IllegalArgumentException(
+                            "--from-request-body requires <path> <method>, e.g. --from-request-body /users POST");
+                }
+                String pathKey = args[fromRequestBodyIndex + 1];
+                String httpMethod = args[fromRequestBodyIndex + 2];
+                System.out.println("  RequestBody: " + httpMethod.toUpperCase() + " " + pathKey);
+
+                if (registryMode) {
+                    System.out.println("  Mode:   Registry (single self-contained schema for IBM/Confluent Schema Registry)");
+                    openApiConverter.convertRegistryFromRequestBody(inputPath, pathKey, httpMethod, outputPath);
+                } else {
+                    openApiConverter.convertFromRequestBody(inputPath, pathKey, httpMethod, outputPath);
+                }
+            } else if (schemaName != null) {
+                // If args contains a schema name, convert specific schema
                 System.out.println("  Schema: " + schemaName);
 
                 if (registryMode) {
@@ -218,12 +267,61 @@ public class ConverterCli {
      * Check if a flag is present in the arguments.
      */
     private boolean hasFlag(String[] args, String flag) {
-        for (String arg : args) {
-            if (flag.equals(arg)) {
-                return true;
+        return indexOfFlag(args, flag) >= 0;
+    }
+
+    /**
+     * Find the index of a flag in the arguments, or -1 if not present.
+     */
+    private int indexOfFlag(String[] args, String flag) {
+        for (int i = 0; i < args.length; i++) {
+            if (flag.equals(args[i])) {
+                return i;
             }
         }
-        return false;
+        return -1;
+    }
+
+    /**
+     * Get the value following a flag in the arguments (e.g. --functional-perimeter users).
+     *
+     * @throws IllegalArgumentException if the flag is present but has no value, or its value
+     *                                   looks like another flag (starts with "--")
+     */
+    private String getFlagValue(String[] args, String flag) {
+        int index = indexOfFlag(args, flag);
+        if (index < 0) {
+            return null;
+        }
+        if (index + 1 >= args.length || args[index + 1].startsWith("--")) {
+            throw new IllegalArgumentException(flag + " requires a value");
+        }
+        return args[index + 1];
+    }
+
+    /**
+     * Find the first positional (non-flag) argument at or after the given index,
+     * skipping recognized flags and the values that belong to them.
+     */
+    private String firstPositionalArgAfter(String[] args, int startIndex) {
+        for (int i = startIndex; i < args.length; i++) {
+            String arg = args[i];
+            if ("--registry".equals(arg) || "--doc".equals(arg)) {
+                continue;
+            }
+            if ("--functional-perimeter".equals(arg) || "--envelope".equals(arg)) {
+                i++; // skip the flag's value
+                continue;
+            }
+            if ("--from-request-body".equals(arg)) {
+                i += 2; // skip the flag's <path> <method> values
+                continue;
+            }
+            if (!arg.startsWith("--")) {
+                return arg;
+            }
+        }
+        return null;
     }
 
     /**
@@ -280,7 +378,10 @@ public class ConverterCli {
         System.err.println("  encode <schema.avsc> --generate <output.avro> [SchemaName]");
         System.err.println();
         System.err.println("Convert usage (default):");
-        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc]");
+        System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
+        System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
+        System.err.println();
+        System.err.println("  --stacktrace  Print the full Java stack trace on unexpected errors (hidden by default)");
         System.err.println();
         System.err.println("Examples:");
         System.err.println("  # Generate sample JSON from Avro schema");
@@ -303,5 +404,14 @@ public class ConverterCli {
         System.err.println();
         System.err.println("  # Registry mode with doc fields");
         System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml ResultResponse.avsc ResultResponse --registry --doc");
+        System.err.println();
+        System.err.println("  # Convert the requestBody schema of a specific path/method operation");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --from-request-body /users POST");
+        System.err.println();
+        System.err.println("  # Convert with a custom functional-perimeter namespace (com.shanks.generated.<name>)");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml CreateUser.avsc --functional-perimeter users --from-request-body /users POST");
+        System.err.println();
+        System.err.println("  # Convert using a non-default notif envelope (src/main/resources/envelopes/<name>.json)");
+        System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope minimal");
     }
 }

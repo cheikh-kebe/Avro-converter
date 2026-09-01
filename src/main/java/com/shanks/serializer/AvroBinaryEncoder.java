@@ -55,6 +55,7 @@ public class AvroBinaryEncoder {
         return reader.read(null, decoder);
     }
 
+    /** Write a single record to an Avro container file, embedding the schema in the header. */
     private void writeToAvroFile(Schema schema, GenericRecord record, String outputPath) throws IOException {
         GenericDatumWriter<GenericRecord> writer = new GenericDatumWriter<>(schema);
         try (DataFileWriter<GenericRecord> dataFileWriter = new DataFileWriter<>(writer)) {

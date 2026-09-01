@@ -1,0 +1,49 @@
+openapi: 3.1.0
+info:
+  title: Webhooks Conversion Test API
+  description: Test file used to validate OpenAPI 3.1 webhooks -> Avro conversion.
+  version: 1.0.0
+webhooks:
+  newUser:
+    post:
+      operationId: onNewUser
+      summary: Fired when a new user is created
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreatedEvent'
+      responses:
+        '200':
+          description: Acknowledged
+components:
+  schemas:
+    UserCreatedEvent:
+      type: object
+      description: Event payload pushed when a user is created.
+      required:
+        - id
+        - email
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        profile:
+          description: Optional profile, present only for verified users.
+          anyOf:
+            - $ref: '#/components/schemas/Profile'
+            - type: "null"
+    Profile:
+      type: object
+      description: Extended profile information.
+      properties:
+        bio:
+          type: string
+        website:
+          type: string
