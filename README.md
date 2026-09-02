@@ -14,6 +14,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
     - [Utilisation](#utilisation)
   - [📖 Documentation Détaillée](#-documentation-détaillée)
     - [OpenAPI/Swagger → Avro](#openapiswagger--avro)
+    - [🪝 Webhooks OpenAPI 3.1 → Avro](#-webhooks-openapi-31--avro)
     - [✅ Validation Avro \& erreurs lisibles](#-validation-avro--erreurs-lisibles)
     - [JSON → Avro](#json--avro)
     - [📬 Enveloppe `notif` (`.webhook.avsc`)](#-enveloppe-notif-webhookavsc)
@@ -48,6 +49,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
 - 📦 **Avro → JSON → Binaire** : génération de JSON exemple et encodage en trame binaire Avro
 - 📄 **Minification** : génération automatique d'une version one-line (`.min.avsc`) pour chaque schéma
 - 📬 **Enveloppe `notif`** : génération automatique d'un fichier consolidé (`.webhook.avsc`) qui embarque le schéma dans une enveloppe `notif` (header + payload) — l'enveloppe elle-même est un template JSON interchangeable (`--envelope <nom>`), pas une structure figée
+- 🪝 **Webhooks OpenAPI 3.1** (`webhooks:`) : en mode "toutes les schémas vers un dossier", convertit aussi les payloads d'événements déclarés dans la section `webhooks:` (requestBody + réponses), en plus de `components/schemas` — voir [section dédiée](#-webhooks-openapi-31--avro)
 - ✅ **Validation Avro stricte** : noms de records/champs/enums et symboles d'enum invalides détectés à la conversion, avec un message lisible (pas une stacktrace) — identique en mode standard et en mode registry, voir [section dédiée](#-validation-avro--erreurs-lisibles)
 
 <a id="quick-start"></a>
@@ -105,7 +107,8 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 <a id="documentation-detaillee"></a>
 ## 📖 Documentation Détaillée
 
-[Diagramme d'architecture](./docs/diagrams/converter-architecture.drawio.png)
+- [Diagramme d'architecture](./docs/diagrams/converter-architecture.drawio.png) — vue statique des composants
+- [Diagramme BPMN du pipeline de conversion](./docs/diagrams/converter-pipeline.drawio) — flux d'exécution de bout en bout (JSON→Avro et OpenAPI→Avro), ouvrable dans [draw.io](https://app.diagrams.net) ou l'extension VS Code *Draw.io Integration*
 
 <a id="openapi-vers-avro"></a>
 ### OpenAPI/Swagger → Avro
@@ -116,6 +119,7 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 - Extraction automatique des patterns regex
 - Résolution des `$ref` (y compris références directes et $ref multiples sur le même schéma)
 - **Conversion depuis un schéma nommé** (`components/schemas`) ou **depuis le `requestBody`** d'une opération (`--from-request-body`)
+- **Webhooks OpenAPI 3.1** (`webhooks:`) : convertis automatiquement en mode "toutes les schémas vers un dossier" (voir [section dédiée](#-webhooks-openapi-31--avro))
 - **Mode registry** (`--registry`) : schéma unique auto-contenu compatible IBM/Confluent Schema Registry
 - **Mode doc** (`--doc`) : inclut les champs `doc` dans le schéma Avro, extraits des `description` OpenAPI
 - **Périmètre fonctionnel** (`--functional-perimeter <nom>`) : ajoute un suffixe au namespace par défaut (`com.shanks.generated.<nom>`)
@@ -190,6 +194,52 @@ java -jar target/json-to-avro-converter.jar api.yaml Cancel.avsc --from-request-
 | valeurs d'enum | — | `enum` |
 
 > ⚠️ Les types numériques et date/heure sont **volontairement mappés en `string`**, pour éviter toute perte de précision et simplifier la compatibilité entre systèmes. Ce n'est pas un bug : c'est un choix de conception assumé.
+
+<a id="webhooks-openapi-31"></a>
+### 🪝 Webhooks OpenAPI 3.1 → Avro
+
+Quand la spec contient une section `webhooks:` (spécifique à OpenAPI 3.1), le mode **"toutes les schémas vers un dossier"** (`java -jar ... api.yaml output-dir/`, sans nom de schéma ni `--from-request-body`) la parcourt automatiquement en plus de `components/schemas`, et génère un fichier `.avsc` (+ `.min.avsc` / `.webhook.avsc`) par payload d'événement déclaré.
+
+**Comportement:**
+- Pour chaque webhook et chaque opération HTTP qu'il déclare :
+  - Le schéma du `requestBody` (le payload que le fournisseur pousse) est converti dans un fichier nommé d'après l'`operationId` (ex: `onNewUser` → `OnNewUser.avsc`), ou à défaut `<NomDuWebhook><Méthode>` (ex: webhook `newUser` en `POST`, sans `operationId` → `NewUserPost.avsc`).
+  - Le schéma de chaque réponse déclarée (`responses:`) est aussi converti, dans un fichier `<mêmeNom>Response<CodeStatut>.avsc` (ex: `OnNewUserResponse200.avsc`).
+- Le schéma est extrait du media type `application/json` du contenu, ou du premier média disponible si `application/json` est absent.
+- Comme pour `components/schemas`, seuls les schémas qui se résolvent en `record` produisent un fichier — les enums/scalaires bruts au premier niveau sont ignorés.
+- Une spec qui ne contient ni `components/schemas` ni `webhooks` fait échouer la conversion avec un message explicite.
+
+> Cette même mise à jour a aussi corrigé la résolution du champ `type` pour OpenAPI 3.1 : le parser expose alors l'ensemble de types JSON Schema via `getTypes()` plutôt qu'un `type` unique via `getType()` (souvent `null` en 3.1). Les deux formes sont désormais gérées de façon transparente, sans impact sur les specs 3.0.x existantes.
+
+**Exemple:**
+
+```yaml
+# api.yaml (OpenAPI 3.1)
+webhooks:
+  newUser:
+    post:
+      operationId: onNewUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreatedEvent'
+      responses:
+        '200':
+          description: Acknowledged
+components:
+  schemas:
+    UserCreatedEvent:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+```
+
+```bash
+java -jar target/json-to-avro-converter.jar api.yaml output-dir/
+# → Génère output-dir/UserCreatedEvent.avsc (depuis components/schemas)
+#   ET output-dir/OnNewUser.avsc (depuis le requestBody du webhook newUser)
+```
 
 <a id="validation-avro"></a>
 ### ✅ Validation Avro & erreurs lisibles
