@@ -1,0 +1,209 @@
+<mxfile host="65bd71144e">
+    <diagram id="converter-pipeline-bpmn" name="Pipeline de conversion (BPMN)">
+        <mxGraphModel dx="735" dy="471" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="2300" pageHeight="980" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="pool" value="Pipeline de conversion — json-to-avro-converter" style="swimlane;html=1;horizontal=0;startSize=30;fillColor=none;strokeColor=#333333;fontStyle=1;fontSize=13;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="40" y="40" width="2200" height="1300" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_cli" value="CLI / Orchestration&#xa;ConverterCli · CliArguments" style="swimlane;html=1;horizontal=0;startSize=26;fillColor=none;strokeColor=#666666;fontStyle=1;fontSize=11;collapsible=0;" parent="pool" vertex="1">
+                    <mxGeometry x="30" width="2170" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="err_end" value="exit 1 — erreur&#xa;(message ; --stacktrace&#xa;pour la stack Java)" style="shape=mxgraph.bpmn.shape;html=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;perimeter=ellipsePerimeter;symbol=general;outline=end;fillColor=#f8cecc;strokeColor=#b85450;" parent="lane_cli" vertex="1">
+                    <mxGeometry x="2020" y="26" width="46" height="46" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_parse" value="Parsing &amp; chargement&#xa;OpenApiParser · SwaggerParser v3 · Jackson" style="swimlane;html=1;horizontal=0;startSize=26;fillColor=none;strokeColor=#666666;fontStyle=1;fontSize=11;collapsible=0;" parent="pool" vertex="1">
+                    <mxGeometry x="30" y="150" width="2170" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_named" value="loadAndMap()&#xa;components/schemas[&lt;name&gt;]" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=middle;spacing=4;fontSize=10;" parent="lane_parse" vertex="1">
+                    <mxGeometry x="945" y="63" width="250" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_rb" value="loadAndMapFromRequestBody()&#xa;--from-request-body &lt;path&gt; &lt;method&gt;" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=middle;spacing=4;fontSize=10;" parent="lane_parse" vertex="1">
+                    <mxGeometry x="945" y="21" width="250" height="34" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_all" value="convertAll()&#xa;components/schemas + webhooks (OpenAPI 3.1)&#xa;→ un fichier par record" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=middle;spacing=4;fontSize=10;" parent="lane_parse" vertex="1">
+                    <mxGeometry x="945" y="105" width="250" height="42" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_map" value="Mapping / inférence de types&#xa;OpenApiToAvroTypeMapper · TypeInferenceEngine" style="swimlane;html=1;horizontal=0;startSize=26;fillColor=none;strokeColor=#666666;fontStyle=1;fontSize=11;collapsible=0;" parent="pool" vertex="1">
+                    <mxGeometry x="30" y="330" width="2170" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="d_typeinfo" value="AvroTypeInfo&#xa;(arbre de types&#xa;intermédiaire)" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;size=14;fontSize=11;" parent="lane_map" vertex="1">
+                    <mxGeometry x="1580" y="62" width="140" height="76" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_build" value="Construction du schéma Avro&#xa;AvroSchemaBuilder · SchemaGenerator · RegistrySchemaGenerator" style="swimlane;html=1;horizontal=0;startSize=26;fillColor=none;strokeColor=#666666;fontStyle=1;fontSize=11;collapsible=0;" parent="pool" vertex="1">
+                    <mxGeometry x="30" y="510" width="2170" height="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="g_registry" value="--registry ?" style="shape=mxgraph.bpmn.gateway2;html=1;gwType=exclusive;dir=north;fillColor=#ffe6cc;strokeColor=#d79b00;verticalLabelPosition=bottom;verticalAlign=top;" parent="lane_build" vertex="1">
+                    <mxGeometry x="970" y="140" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_reg_gen" value="RegistrySchemaGenerator&#xa;.generateRegistrySchema()" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=middle;spacing=4;fontSize=10;" parent="lane_build" vertex="1">
+                    <mxGeometry x="1080" y="100" width="230" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_std_gen" value="SchemaGenerator&#xa;.generateSchemaJson()" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=middle;spacing=4;fontSize=10;" parent="lane_build" vertex="1">
+                    <mxGeometry x="1080" y="190" width="230" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_builder" value="AvroSchemaBuilder.build()&#xa;• AvroTypeInfo → org.apache.avro.Schema&#xa;• namespaces hiérarchiques (anti-collision)&#xa;• validation des noms Avro&#xa;  → AvroSchemaValidationException" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="lane_build" vertex="1">
+                    <mxGeometry x="1370" y="120" width="320" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_tostring" value="Sérialisation JSON&#xa;schema.toString(true)&#xa;dédup $ref via Avro Names" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=10;" parent="lane_build" vertex="1">
+                    <mxGeometry x="1730" y="128" width="180" height="84" as="geometry"/>
+                </mxCell>
+                <mxCell id="e14" value="oui" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_build" source="g_registry" target="t_reg_gen" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e15" value="non" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_build" source="g_registry" target="t_std_gen" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_build" source="t_reg_gen" target="t_builder" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e18" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_build" source="t_std_gen" target="t_builder" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_build" source="t_builder" target="t_tostring" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="pool" source="d_typeinfo" target="g_registry" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1680" y="560"/>
+                            <mxPoint x="1025" y="560"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e_err2" value="nom Avro invalide" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;" parent="pool" source="t_builder" target="err_end" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1560" y="590"/>
+                            <mxPoint x="2073" y="590"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="start1" value="Entrée CLI&#xa;&lt;input&gt; &lt;output.avsc&gt; [schema] [flags]" style="shape=mxgraph.bpmn.shape;html=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;perimeter=ellipsePerimeter;symbol=general;outline=standard;fillColor=#d5e8d4;strokeColor=#82b366;" parent="1" vertex="1">
+                    <mxGeometry x="120" y="112" width="46" height="46" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_args" value="ConverterCli.runConvert()&#xa;• CliArguments.parse + validations d&#39;E/S&#xa;• applique --envelope / --doc /&#xa;  --functional-perimeter / --registry" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="190" y="100" width="230" height="72" as="geometry"/>
+                </mxCell>
+                <mxCell id="g_openapi" value="isOpenApiFile(input) ?" style="shape=mxgraph.bpmn.gateway2;html=1;gwType=exclusive;dir=north;fillColor=#ffe6cc;strokeColor=#d79b00;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="470" y="108" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_oa_parse" value="OpenApiParser.parse()&#xa;• Swagger Parser v3&#xa;• ParseOptions : resolve + resolveFully" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="540" y="234" width="240" height="72" as="geometry"/>
+                </mxCell>
+                <mxCell id="g_target" value="Cible de conversion ?" style="shape=mxgraph.bpmn.gateway2;html=1;gwType=exclusive;dir=north;fillColor=#ffe6cc;strokeColor=#d79b00;verticalLabelPosition=bottom;verticalAlign=top;" parent="1" vertex="1">
+                    <mxGeometry x="840" y="245" width="50" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_infer" value="TypeInferenceEngine.inferType()  (récursif)&#xa;• inférence à partir des valeurs JSON&#xa;• UuidDetector / EnumDetector&#xa;• makeNullable pour les champs absents" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="360" y="392" width="270" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_map" value="OpenApiToAvroTypeMapper.mapSchema()  (récursif)&#xa;• $ref → mapReference   • enum → mapEnum&#xa;• anyOf / oneOf → mapComposedSchema&#xa;• object → record  • array  • scalaire → string&#xa;• resolveType() : getType() ?? getTypes()  [3.1]" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="1180" y="380" width="330" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="start1" target="t_args" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_args" target="g_openapi" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e3" value="OpenAPI / Swagger&#xa;(.yaml / .yml / .json)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="g_openapi" target="t_oa_parse" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e4" value="données JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="g_openapi" target="t_infer" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_oa_parse" target="g_target" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e6" value="--from-request-body" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="g_target" target="t_rb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e7" value="&lt;schema-name&gt;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="g_target" target="t_named" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e8" value="sinon (toutes)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="g_target" target="t_all" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_rb" target="t_map" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1345" y="231"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_named" target="t_map" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1345" y="270"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_all" target="t_map" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1345" y="313"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_map" target="d_typeinfo" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e16" value="JSON → JsonToAvroConverter&#xa;(mode standard uniquement)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_infer" target="t_std_gen" edge="1">
+                    <mxGeometry x="-0.329" y="-8" relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1000" y="442"/>
+                            <mxPoint x="1000" y="830"/>
+                            <mxPoint x="1265" y="830"/>
+                        </Array>
+                        <mxPoint as="offset"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="1" source="t_tostring" target="t_writer" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e_err1" value="parse / résolution&#xa;$ref échoue" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;dashed=1;strokeColor=#b85450;fontColor=#b85450;fontSize=10;" parent="1" source="t_oa_parse" target="err_end" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="680" y="210"/>
+                            <mxPoint x="2113" y="210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="legend" value="Légende  ● événement de début/fin  ◆ passerelle exclusive (XOR)  □ tâche  ⊟ objet de données  - - - flux d&#39;erreur&#xa;Les deux chemins (JSON, OpenAPI) convergent sur AvroSchemaBuilder : Avro est l&#39;unique autorité de construction ; les deux modes ne diffèrent que par le wrapper de sérialisation." style="text;html=1;align=left;verticalAlign=top;spacing=4;fontSize=10;fontColor=#555555;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="1120" width="1400" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="lane_out" value="Sérialisation &amp; écriture&#xa;SchemaFileWriter · NotifWrapperGenerator" style="swimlane;html=1;horizontal=0;startSize=26;fillColor=none;strokeColor=#666666;fontStyle=1;fontSize=11;collapsible=0;" parent="1" vertex="1">
+                    <mxGeometry x="70" y="920" width="2170" height="390" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_writer" value="SchemaFileWriter.write()&#xa;calcule les 3 contenus avant&#xa;tout accès disque (écriture atomique)" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=11;" parent="lane_out" vertex="1">
+                    <mxGeometry x="1710" y="123" width="260" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="t_wrap" value="NotifWrapperGenerator.wrap()&#xa;injecte &#39;payload&#39; dans&#xa;envelopes/&lt;--envelope&gt;.json" style="rounded=1;whiteSpace=wrap;html=1;arcSize=12;fillColor=#dae8fc;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacing=6;fontSize=10;" parent="lane_out" vertex="1">
+                    <mxGeometry x="1710" y="195" width="260" height="52" as="geometry"/>
+                </mxCell>
+                <mxCell id="end_avsc" value="&lt;name&gt;.avsc&#xa;(formaté)" style="shape=mxgraph.bpmn.shape;html=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;perimeter=ellipsePerimeter;symbol=general;outline=end;fillColor=#d5e8d4;strokeColor=#82b366;" parent="lane_out" vertex="1">
+                    <mxGeometry x="2040" y="121" width="44" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="end_min" value="&lt;name&gt;.min.avsc&#xa;(minifié)" style="shape=mxgraph.bpmn.shape;html=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;perimeter=ellipsePerimeter;symbol=general;outline=end;fillColor=#d5e8d4;strokeColor=#82b366;" parent="lane_out" vertex="1">
+                    <mxGeometry x="2040" y="173" width="44" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="end_webhook" value="&lt;name&gt;.webhook.avsc&#xa;(enveloppe notif)" style="shape=mxgraph.bpmn.shape;html=1;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;perimeter=ellipsePerimeter;symbol=general;outline=end;fillColor=#d5e8d4;strokeColor=#82b366;" parent="lane_out" vertex="1">
+                    <mxGeometry x="2040" y="225" width="44" height="44" as="geometry"/>
+                </mxCell>
+                <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_out" source="t_writer" target="t_wrap" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e22" value=".avsc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_out" source="t_writer" target="end_avsc" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e23" value=".min.avsc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_out" source="t_writer" target="end_min" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e24" value=".webhook.avsc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=block;endFill=1;strokeColor=#333333;fontSize=10;" parent="lane_out" source="t_wrap" target="end_webhook" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>
