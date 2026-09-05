@@ -1,5 +1,8 @@
 package com.shanks.converter;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -10,6 +13,8 @@ import java.io.IOException;
  * (.webhook.avsc) wrapping the schema in the standard notif envelope.
  */
 class SchemaFileWriter {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
      * Write a schema JSON string to the given path, plus its minified and
@@ -34,6 +39,29 @@ class SchemaFileWriter {
      * @throws IOException if file operations fail
      */
     static void write(String schemaJson, String outputPath, String envelopeName) throws IOException {
+        write(schemaJson, outputPath, envelopeName, null);
+    }
+
+    /**
+     * Write a schema JSON string to the given path, plus its minified and
+     * notif-wrapped companions, using the named envelope template, and stamping
+     * the OpenAPI spec's own API version (from {@code info.version}) onto the
+     * root schema's {@code doc} and into all three output filenames.
+     *
+     * @param schemaJson   the schema JSON to write
+     * @param outputPath   path to the output file (e.g. User.avsc)
+     * @param envelopeName the envelope template name (see {@link NotifWrapperGenerator})
+     * @param apiVersion   the source API's version (e.g. "1.0.0"), or null/blank if
+     *                     unavailable (e.g. JSON-input mode) — a no-op in that case
+     * @throws IOException if file operations fail
+     */
+    static void write(String schemaJson, String outputPath, String envelopeName, String apiVersion)
+            throws IOException {
+        schemaJson = injectVersionDoc(schemaJson, apiVersion);
+        if (apiVersion != null && !apiVersion.isBlank()) {
+            outputPath = buildSuffixedPath(outputPath, ".v" + apiVersion);
+        }
+
         // Compute all three contents before touching disk, so a failure
         // (e.g. NotifWrapperGenerator.wrap() on malformed JSON) never
         // leaves a partial set of output files behind.
@@ -58,6 +86,21 @@ class SchemaFileWriter {
         try (FileWriter writer = new FileWriter(file)) {
             writer.write(content);
         }
+    }
+
+    /**
+     * Set (or append to) the root schema's {@code doc} field with the source API's
+     * version. No-op when {@code apiVersion} is null/blank.
+     */
+    private static String injectVersionDoc(String schemaJson, String apiVersion) throws IOException {
+        if (apiVersion == null || apiVersion.isBlank()) {
+            return schemaJson;
+        }
+        ObjectNode root = (ObjectNode) MAPPER.readTree(schemaJson);
+        String versionNote = "API version: " + apiVersion;
+        String existingDoc = root.has("doc") ? root.get("doc").asText() : "";
+        root.put("doc", existingDoc.isBlank() ? versionNote : existingDoc + " | " + versionNote);
+        return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root);
     }
 
     /** Insert a suffix before the file extension (e.g. "User.avsc" + ".min" → "User.min.avsc"). */

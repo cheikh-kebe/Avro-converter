@@ -59,6 +59,11 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope m
 # Run JAR showing the full Java stack trace on unexpected errors (hidden by default)
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --stacktrace
 
+# Run JAR in interactive directory (mass conversion) mode: for each spec file in specs/,
+# prompts for a schema then per-file flags (registry?/doc?/functional-perimeter/envelope)
+java -jar target/json-to-avro-converter.jar specs/ out/
+printf "1\no\nn\n\n\n" | java -jar target/json-to-avro-converter.jar specs/ out/
+
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
 
@@ -127,6 +132,11 @@ This is a converter tool that supports:
   - Loads `src/main/resources/envelopes/<name>.json` from the classpath
   - Defaults to `default` (the original fixed structure) when omitted
   - Applies to both OpenAPI and JSON conversion modes
+- **Interactive Directory Mode** (input path is a directory instead of a file): for every `*.yaml`/`*.yml`/`*.json` spec found directly in that directory (non-recursive), prompts on stdin for which schema to convert (`components/schemas` keys plus webhook `requestBody` payload names — no response schemas), then prompts for `--registry`/`--doc`/`--functional-perimeter`/`--envelope` for that one file
+  - CLI-level flags are ignored in this mode — everything is re-prompted per file, with plain defaults (registry off, doc off, no perimeter, `default` envelope) accepted by pressing Enter
+  - `s`/`skip` skips a file, `q`/`quit` (or EOF on stdin) aborts the rest of the batch; a file that fails to parse or convert is journaled and does not stop the batch
+  - Exit code `1` if at least one file failed, `0` otherwise; requires an interactive stdin, not meant for non-interactive CI pipelines
+  - Implemented by `OpenApiToAvroConverter.loadSchemas`/`convertNamed` (converter side) and `ConverterCli.runMassConvert` (CLI prompt loop)
 
 ### Output Files
 
