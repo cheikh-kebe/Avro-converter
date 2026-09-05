@@ -76,7 +76,7 @@ public class JsonToAvroConverter {
 
         String prettyJson = schemaGenerator.generateSchemaJson(typeInfo, "RootRecord");
 
-        SchemaFileWriter.write(prettyJson, outputAvscPath, envelopeName);
+        SchemaFileWriter.write(prettyJson, outputAvscPath, envelopeName, null);
     }
 
     /**
