@@ -9,8 +9,16 @@ import com.shanks.serializer.SchemaLoader;
 import org.apache.avro.Schema;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * CLI orchestrator for converting to Avro schemas.
@@ -29,13 +37,13 @@ public class ConverterCli {
 
     private final JsonToAvroConverter jsonConverter;
     private final OpenApiToAvroConverter openApiConverter;
+    private final InputStream stdin;
 
     /**
      * Constructor with default converters.
      */
     public ConverterCli() {
-        this.jsonConverter = new JsonToAvroConverter();
-        this.openApiConverter = new OpenApiToAvroConverter();
+        this(new JsonToAvroConverter(), new OpenApiToAvroConverter(), System.in);
     }
 
     /**
@@ -45,8 +53,22 @@ public class ConverterCli {
      * @param openApiConverter the OpenAPI to Avro converter
      */
     public ConverterCli(JsonToAvroConverter jsonConverter, OpenApiToAvroConverter openApiConverter) {
+        this(jsonConverter, openApiConverter, System.in);
+    }
+
+    /**
+     * Constructor with dependency injection for testing, including the input
+     * stream used to drive the interactive directory (mass conversion) prompts.
+     *
+     * @param jsonConverter the JSON to Avro converter
+     * @param openApiConverter the OpenAPI to Avro converter
+     * @param stdin the input stream to read interactive prompt answers from
+     */
+    public ConverterCli(JsonToAvroConverter jsonConverter, OpenApiToAvroConverter openApiConverter,
+            InputStream stdin) {
         this.jsonConverter = jsonConverter;
         this.openApiConverter = openApiConverter;
+        this.stdin = stdin;
     }
 
     /**
@@ -176,11 +198,16 @@ public class ConverterCli {
      */
     private int runConvert(String[] args) throws Exception {
         CliArguments cliArgs = CliArguments.parse(args);
-        cliArgs.validateInputExists();
         cliArgs.validateOutputWritable();
 
         String inputPath = cliArgs.getInputJsonPath();
         String outputPath = cliArgs.getOutputAvscPath();
+
+        if (cliArgs.isInputDirectory()) {
+            return runMassConvert(inputPath, outputPath);
+        }
+
+        cliArgs.validateInputExists();
 
         String envelopeName = getFlagValue(args, "--envelope");
         if (envelopeName != null) {
@@ -244,11 +271,7 @@ public class ConverterCli {
                 }
             } else {
                 // Extract output directory and convert all schemas
-                int lastSlash = outputPath.lastIndexOf('/');
-                if (lastSlash == -1) {
-                    lastSlash = outputPath.lastIndexOf('\\');
-                }
-                String outputDir = lastSlash > 0 ? outputPath.substring(0, lastSlash) : ".";
+                String outputDir = deriveOutputDir(outputPath);
                 System.out.println("  Generating all schemas to directory: " + outputDir);
                 openApiConverter.convertAll(inputPath, outputDir);
             }
@@ -261,6 +284,211 @@ public class ConverterCli {
 
         System.out.println("Conversion completed successfully!");
         return 0;
+    }
+
+    /**
+     * Derive an output directory from an output path argument: everything before
+     * the last path separator, or "." if the path has none.
+     */
+    private String deriveOutputDir(String outputPath) {
+        int lastSlash = outputPath.lastIndexOf('/');
+        if (lastSlash == -1) {
+            lastSlash = outputPath.lastIndexOf('\\');
+        }
+        return lastSlash > 0 ? outputPath.substring(0, lastSlash) : ".";
+    }
+
+    /**
+     * Interactive directory (mass conversion) mode: for every OpenAPI spec found
+     * directly in {@code inputDir} (non-recursive), list every schema it exposes
+     * (components/schemas plus webhook requestBody payloads), let the user pick
+     * one on stdin, then prompt for the conversion flags to apply to that one
+     * file, and convert it. A file with no usable schema, or that fails to parse
+     * or convert, does not stop the batch — it is journaled and reported in the
+     * final summary.
+     */
+    private int runMassConvert(String inputDir, String outputPathArg) throws IOException {
+        File[] specs = new File(inputDir).listFiles((dir, name) -> {
+            String lower = name.toLowerCase();
+            return lower.endsWith(".yaml") || lower.endsWith(".yml") || lower.endsWith(".json");
+        });
+        if (specs == null || specs.length == 0) {
+            throw new IllegalArgumentException(
+                    "No OpenAPI spec files (*.yaml, *.yml, *.json) found in directory: " + inputDir);
+        }
+        Arrays.sort(specs);
+
+        String outputDir = deriveOutputDir(outputPathArg);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(stdin));
+
+        List<String> converted = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        Map<String, String> failed = new LinkedHashMap<>();
+
+        for (int i = 0; i < specs.length; i++) {
+            File specFile = specs[i];
+            try {
+                processMassConvertFile(reader, specFile, outputDir, converted, skipped, failed);
+            } catch (EofSignal | QuitSignal e) {
+                skipped.add(specFile.getName());
+                for (int j = i + 1; j < specs.length; j++) {
+                    skipped.add(specs[j].getName());
+                }
+                break;
+            }
+        }
+
+        System.out.println();
+        System.out.println(converted.size() + " converti(s), " + skipped.size() + " ignoré(s), "
+                + failed.size() + " en échec");
+        if (!skipped.isEmpty()) {
+            System.out.println("  Ignorés : " + skipped);
+        }
+        if (!failed.isEmpty()) {
+            for (Map.Entry<String, String> entry : failed.entrySet()) {
+                System.err.println("  Échec " + entry.getKey() + " : " + entry.getValue());
+            }
+        }
+
+        return failed.isEmpty() ? 0 : 1;
+    }
+
+    /**
+     * Handle one spec file of a directory (mass conversion) batch: list its
+     * schemas, prompt the user to pick one and to set the conversion flags, then
+     * convert. Populates {@code converted}/{@code skipped}/{@code failed}
+     * directly; throws {@link EofSignal}/{@link QuitSignal} to abort the whole
+     * batch.
+     */
+    private void processMassConvertFile(BufferedReader reader, File specFile, String outputDir,
+            List<String> converted, List<String> skipped, Map<String, String> failed) {
+        OpenApiToAvroConverter.SpecSchemas spec;
+        try {
+            spec = openApiConverter.loadSchemas(specFile.getPath());
+        } catch (Exception e) {
+            failed.put(specFile.getName(), e.getMessage());
+            return;
+        }
+
+        List<String> names = spec.getSchemaNames();
+        System.out.println();
+        System.out.println("== " + specFile.getName() + " ==");
+        for (int i = 0; i < names.size(); i++) {
+            System.out.println("  " + (i + 1) + ") " + names.get(i));
+        }
+        System.out.print("Schéma à convertir (numéro ou nom, 's' = ignorer ce fichier, 'q' = arrêter) : ");
+
+        String choice = promptSchemaChoice(reader, names);
+        if (choice == null) {
+            skipped.add(specFile.getName());
+            return;
+        }
+
+        boolean registryMode = promptYesNo(reader, "  Mode registry ?", false);
+        boolean docMode = promptYesNo(reader, "  Inclure les docs ?", false);
+        String functionalPerimeter = promptText(reader, "  Functional perimeter (namespace, vide = aucun)", null);
+        String envelope = promptText(reader, "  Envelope", "default");
+
+        openApiConverter.setIncludeDoc(docMode);
+        openApiConverter.setFunctionalPerimeter(functionalPerimeter);
+        openApiConverter.setEnvelope(envelope);
+
+        String outputPath = new File(outputDir, choice + ".avsc").getPath();
+        try {
+            openApiConverter.convertNamed(spec, choice, outputPath, registryMode);
+            converted.add(specFile.getName() + " -> " + choice);
+        } catch (Exception e) {
+            failed.put(specFile.getName(), e.getMessage());
+        }
+    }
+
+    /**
+     * Read one line from an interactive prompt.
+     *
+     * @throws EofSignal if the input stream has no more lines
+     */
+    private String readLine(BufferedReader reader) {
+        try {
+            String line = reader.readLine();
+            if (line == null) {
+                throw new EofSignal();
+            }
+            return line.trim();
+        } catch (IOException e) {
+            throw new EofSignal();
+        }
+    }
+
+    /**
+     * Prompt for a yes/no answer, defaulting to {@code defaultValue} on an empty
+     * line.
+     */
+    private boolean promptYesNo(BufferedReader reader, String label, boolean defaultValue) {
+        System.out.print(label + (defaultValue ? " (O/n) : " : " (o/N) : "));
+        String line = readLine(reader);
+        if (line.isEmpty()) {
+            return defaultValue;
+        }
+        String lower = line.toLowerCase();
+        return lower.equals("o") || lower.equals("oui") || lower.equals("y") || lower.equals("yes");
+    }
+
+    /**
+     * Prompt for a free-text answer, defaulting to {@code defaultValue} on an
+     * empty line.
+     */
+    private String promptText(BufferedReader reader, String label, String defaultValue) {
+        String shown = defaultValue == null || defaultValue.isBlank() ? "vide" : defaultValue;
+        System.out.print(label + " (" + shown + ") : ");
+        String line = readLine(reader);
+        return line.isEmpty() ? defaultValue : line;
+    }
+
+    /**
+     * Prompt for the schema to convert from a numbered list, reprompting on
+     * invalid input.
+     *
+     * @return the chosen schema name, or {@code null} if the user chose to skip
+     *         this file ('s'/'skip')
+     * @throws QuitSignal if the user asked to abort the whole batch ('q'/'quit')
+     */
+    private String promptSchemaChoice(BufferedReader reader, List<String> names) {
+        while (true) {
+            String line = readLine(reader);
+            String lower = line.toLowerCase();
+            if (lower.equals("s") || lower.equals("skip")) {
+                return null;
+            }
+            if (lower.equals("q") || lower.equals("quit")) {
+                throw new QuitSignal();
+            }
+            try {
+                int index = Integer.parseInt(line);
+                if (index >= 1 && index <= names.size()) {
+                    return names.get(index - 1);
+                }
+            } catch (NumberFormatException ignored) {
+                // not a number, fall through to exact-name matching below
+            }
+            if (names.contains(line)) {
+                return line;
+            }
+            System.out.print("Choix invalide, réessaie : ");
+        }
+    }
+
+    /**
+     * Signals that stdin has no more input while running the interactive
+     * directory (mass conversion) prompts — treated like 'quit'.
+     */
+    private static final class EofSignal extends RuntimeException {
+    }
+
+    /**
+     * Signals that the user asked ('q'/'quit') to abort the rest of an
+     * interactive directory (mass conversion) batch.
+     */
+    private static final class QuitSignal extends RuntimeException {
     }
 
     /**
@@ -380,6 +608,7 @@ public class ConverterCli {
         System.err.println("Convert usage (default):");
         System.err.println("  <input-file> <output.avsc> [schema-name] [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
         System.err.println("  <input-file> <output.avsc> --from-request-body <path> <method> [--registry] [--doc] [--functional-perimeter <name>] [--envelope <name>] [--stacktrace]");
+        System.err.println("  <input-dir> <output-dir>  (interactive: prompts for a schema then flags for each spec file in the directory)");
         System.err.println();
         System.err.println("  --stacktrace  Print the full Java stack trace on unexpected errors (hidden by default)");
         System.err.println();
@@ -413,5 +642,8 @@ public class ConverterCli {
         System.err.println();
         System.err.println("  # Convert using a non-default notif envelope (src/main/resources/envelopes/<name>.json)");
         System.err.println("  java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope minimal");
+        System.err.println();
+        System.err.println("  # Interactive: convert a directory of OpenAPI specs, one schema per file, chosen at the prompt");
+        System.err.println("  java -jar target/json-to-avro-converter.jar specs/ out/");
     }
 }

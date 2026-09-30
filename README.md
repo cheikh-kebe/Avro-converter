@@ -14,6 +14,8 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
     - [Utilisation](#utilisation)
   - [📖 Documentation Détaillée](#-documentation-détaillée)
     - [OpenAPI/Swagger → Avro](#openapiswagger--avro)
+    - [🏷️ Version de l'API (`info.version`)](#️-version-de-lapi-infoversion)
+    - [📂 Conversion interactive par dossier](#-conversion-interactive-par-dossier)
     - [✅ Validation Avro \& erreurs lisibles](#-validation-avro--erreurs-lisibles)
     - [JSON → Avro](#json--avro)
     - [📬 Enveloppe `notif` (`.webhook.avsc`)](#-enveloppe-notif-webhookavsc)
@@ -49,6 +51,7 @@ Outil Java qui génère des schémas **Apache Avro** à partir d'une spec **Open
 - 📄 **Minification** : génération automatique d'une version one-line (`.min.avsc`) pour chaque schéma
 - 📬 **Enveloppe `notif`** : génération automatique d'un fichier consolidé (`.webhook.avsc`) qui embarque le schéma dans une enveloppe `notif` (header + payload) — l'enveloppe elle-même est un template JSON interchangeable (`--envelope <nom>`), pas une structure figée
 - ✅ **Validation Avro stricte** : noms de records/champs/enums et symboles d'enum invalides détectés à la conversion, avec un message lisible (pas une stacktrace) — identique en mode standard et en mode registry, voir [section dédiée](#-validation-avro--erreurs-lisibles)
+- 🏷️ **Version de l'API dans la sortie** (OpenAPI uniquement) : `info.version` de la spec est automatiquement reporté dans le nom des 3 fichiers de sortie et dans le `doc` du schéma racine — sans flag à passer, voir [section dédiée](#-version-de-lapi-infoversion)
 
 <a id="quick-start"></a>
 ## 🚀 Quick Start
@@ -101,6 +104,8 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 | `<nom>.avsc` | Schéma Avro formaté (résultat brut de la conversion) |
 | `<nom>.min.avsc` | Copie minifiée en une seule ligne du même schéma |
 | `<nom>.webhook.avsc` | Le schéma consolidé dans un template d'enveloppe `notif` (voir [section dédiée](#-enveloppe-notif-webhookavsc)) |
+
+> En conversion OpenAPI, si la spec déclare `info.version`, `<nom>` devient `<nom>.v<version>` pour les 3 fichiers (ex: `User.v1.0.0.avsc`) — voir [Version de l'API](#️-version-de-lapi-infoversion).
 
 <a id="documentation-detaillee"></a>
 ## 📖 Documentation Détaillée
@@ -190,6 +195,64 @@ java -jar target/json-to-avro-converter.jar api.yaml Cancel.avsc --from-request-
 | valeurs d'enum | — | `enum` |
 
 > ⚠️ Les types numériques et date/heure sont **volontairement mappés en `string`**, pour éviter toute perte de précision et simplifier la compatibilité entre systèmes. Ce n'est pas un bug : c'est un choix de conception assumé.
+
+<a id="version-api"></a>
+### 🏷️ Version de l'API (`info.version`)
+
+Quand la spec OpenAPI déclare une version dans `info.version` (ex: `1.0.0`), elle est automatiquement répercutée sur les 3 fichiers de sortie — **sans flag à passer** :
+
+- **Nom de fichier** : `User.avsc` devient `User.v1.0.0.avsc` (et de même pour `User.v1.0.0.min.avsc` / `User.v1.0.0.webhook.avsc`).
+- **`doc` du schéma racine** : `"doc": "API version: 1.0.0"` — si le schéma avait déjà un `doc` (via `--doc`, voir [Mode doc](#openapiswagger--avro)), la version est ajoutée à la suite : `"<description existante> | API version: 1.0.0"`.
+
+```bash
+# api.yaml déclare  info: { version: 1.0.0 }
+java -jar target/json-to-avro-converter.jar api.yaml User.avsc User
+# → Génère User.v1.0.0.avsc, User.v1.0.0.min.avsc, User.v1.0.0.webhook.avsc
+#   avec "doc" : "API version: 1.0.0" sur le schéma racine (y compris dans le payload embarqué du .webhook.avsc)
+```
+
+Sans `info.version` dans la spec (champ absent ou vide), ce comportement est un **no-op silencieux** : noms de fichiers et schéma restent inchangés. Il en va de même en **mode JSON→Avro**, qui n'a pas de spec OpenAPI d'où tirer une version.
+
+<a id="conversion-interactive-par-dossier"></a>
+### 📂 Conversion interactive par dossier
+
+Quand le premier argument est un **dossier** (au lieu d'un fichier), l'outil bascule dans un mode interactif de conversion de masse : il parcourt tous les fichiers `*.yaml`, `*.yml` et `*.json` trouvés **directement à la racine du dossier** (pas de récursion dans les sous-dossiers) et, pour chacun, demande au clavier quel schéma convertir puis quels réglages appliquer.
+
+```bash
+java -jar target/json-to-avro-converter.jar specs/ out/
+```
+
+Pour chaque fichier, dans l'ordre :
+
+1. La liste de **tous les schémas nommés** exposés par la spec est affichée — les clés de `components/schemas`, et le payload `requestBody` de chaque opération de chaque webhook (`webhooks:`, OpenAPI 3.1). Les schémas de réponse (`Response<Code>`) ne sont pas listés.
+2. Vous choisissez **un seul schéma** par fichier, au clavier — par numéro ou par nom exact. `s` (ou `skip`) ignore ce fichier ; `q` (ou `quit`) arrête tout le lot (les fichiers restants sont marqués ignorés).
+3. Une fois le schéma choisi, 4 questions permettent de régler la conversion **pour ce fichier précis** — chacune acceptée en appuyant sur Entrée pour garder la valeur par défaut :
+   - `Mode registry ?` (o/N)
+   - `Inclure les docs ?` (o/N)
+   - `Functional perimeter (namespace, vide = aucun)`
+   - `Envelope (default)`
+4. Le schéma choisi est converti avec exactement ces réglages, produisant les 3 fichiers habituels (`<nom>.avsc`, `.min.avsc`, `.webhook.avsc`) dans le dossier de sortie.
+
+```
+== orders.yaml ==
+  1) Order
+  2) OrderItem
+  3) OnNewUser              (webhook: newUser POST)
+Schéma à convertir (numéro ou nom, 's' = ignorer ce fichier, 'q' = arrêter) : 1
+
+  Mode registry ? (o/N) :
+  Inclure les docs ? (o/N) : o
+  Functional perimeter (namespace, vide = aucun) :
+  Envelope (default) :
+  Generated: Order.avsc
+
+2 converti(s), 0 ignoré(s), 0 en échec
+```
+
+**À savoir :**
+- Les flags passés sur la ligne de commande de départ (`--registry`, `--doc`, `--functional-perimeter`, `--envelope`) **sont ignorés** dans ce mode — tout se règle au prompt, fichier par fichier. Seul `--stacktrace` reste pris en compte globalement.
+- Une spec illisible (erreur de parsing) ou sans aucun schéma exploitable ne bloque pas le lot : elle est journalisée en échec et le fichier suivant est traité. Le code de sortie final est `1` s'il y a eu au moins un échec, `0` sinon (un fichier simplement ignoré par choix n'est pas un échec).
+- Ce mode nécessite un terminal interactif (lecture sur `stdin`) — il n'est pas conçu pour un pipeline CI non interactif.
 
 <a id="validation-avro"></a>
 ### ✅ Validation Avro & erreurs lisibles

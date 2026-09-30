@@ -50,6 +50,14 @@ public class CliArguments {
     }
 
     /**
+     * @return true if the input path points to an existing directory (mass
+     *         conversion mode)
+     */
+    public boolean isInputDirectory() {
+        return new File(inputJsonPath).isDirectory();
+    }
+
+    /**
      * Validate that input file exists.
      *
      * @throws IllegalArgumentException if input file doesn't exist

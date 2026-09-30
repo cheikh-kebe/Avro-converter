@@ -17,13 +17,14 @@ class OpenApiToAvroConverterWebhookTest {
 
         converter.convertAll("test-openapi-webhooks.yaml", outDir.toString());
 
-        Path generated = outDir.resolve("OnNewUser.avsc");
+        Path generated = outDir.resolve("OnNewUser.v1.0.0.avsc");
         assertThat(generated).exists();
 
         String content = Files.readString(generated);
         assertThat(content).contains("\"type\" : \"record\"");
         assertThat(content).contains("\"name\" : \"email\"");
         assertThat(content).contains("\"name\" : \"displayName\"");
+        assertThat(content).contains("\"doc\" : \"API version: 1.0.0\"");
     }
 
     @Test
@@ -32,7 +33,7 @@ class OpenApiToAvroConverterWebhookTest {
 
         converter.convertAll("test-openapi-webhooks.yaml", outDir.toString());
 
-        String content = Files.readString(outDir.resolve("OnNewUser.avsc"));
+        String content = Files.readString(outDir.resolve("OnNewUser.v1.0.0.avsc"));
 
         // profile: anyOf: [ {$ref: Profile}, {type: "null"} ] -> ["null", <Profile record>]
         assertThat(content).contains("\"name\" : \"profile\"");
