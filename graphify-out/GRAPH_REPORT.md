@@ -1,16 +1,16 @@
-# Graph Report - demo  (2026-09-05)
+# Graph Report - demo  (2026-10-17)
 
 ## Corpus Check
-- 46 files · ~33,426 words
+- 48 files · ~30,929 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 538 nodes · 1277 edges · 22 communities (18 shown, 4 thin omitted)
-- Extraction: 82% EXTRACTED · 18% INFERRED · 0% AMBIGUOUS · INFERRED: 227 edges (avg confidence: 0.8)
+- 556 nodes · 1327 edges · 22 communities (18 shown, 4 thin omitted)
+- Extraction: 82% EXTRACTED · 17% INFERRED · 0% AMBIGUOUS · INFERRED: 232 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `ce792f6f`
+- Built from commit: `854fdb49`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -39,20 +39,18 @@
 - User (combines strings, booleans, numbers, enums, nested objects, arrays)
 
 ## God Nodes (most connected - your core abstractions)
-1. `AvroTypeInfo` - 61 edges
+1. `AvroTypeInfo` - 63 edges
 2. `OpenApiToAvroTypeMapper` - 39 edges
 3. `OpenApiToAvroConverter` - 34 edges
-4. `ConverterCli` - 30 edges
-5. `SchemaGenerator` - 19 edges
-6. `JSON/OpenAPI → Avro Converter Architecture Diagram` - 19 edges
-7. `TypeInferenceEngine` - 18 edges
-8. `Builder` - 18 edges
-9. `OpenApiParser` - 16 edges
-10. `AvroJsonGenerator` - 16 edges
+4. `ConverterCli` - 29 edges
+5. `JsonToAvroConverter` - 21 edges
+6. `SchemaGenerator` - 19 edges
+7. `JSON/OpenAPI → Avro Converter Architecture Diagram` - 19 edges
+8. `TypeInferenceEngine` - 18 edges
+9. `Builder` - 18 edges
+10. `OpenApiParser` - 16 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `App`  [EXTRACTED]
-  docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/App.java
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `CliArguments`  [EXTRACTED]
   docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/cli/CliArguments.java
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `ConverterCli`  [EXTRACTED]
@@ -61,6 +59,8 @@
   docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/JsonToAvroConverter.java
 - `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `OpenApiToAvroConverter`  [EXTRACTED]
   docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/OpenApiToAvroConverter.java
+- `JSON/OpenAPI → Avro Converter Architecture Diagram` --references--> `RegistrySchemaGenerator`  [EXTRACTED]
+  docs/diagrams/converter-architecture.drawio.png → src/main/java/com/shanks/converter/RegistrySchemaGenerator.java
 
 ## Import Cycles
 - None detected.
@@ -80,12 +80,12 @@ Cohesion: 0.10
 Nodes (14): Content, Operation, PathItem, OpenAPI, Pattern, Schema, MappedSchema, OpenApiToAvroConverter (+6 more)
 
 ### Community 1 - "Registry Schema Generation"
-Cohesion: 0.09
-Nodes (19): .avsc output schema file, JSON/OpenAPI → Avro Converter Architecture Diagram, ObjectMapper, SchemaFileWriter, JsonType, ARRAY, BOOLEAN, DOUBLE (+11 more)
+Cohesion: 0.08
+Nodes (20): .avsc output schema file, JSON/OpenAPI → Avro Converter Architecture Diagram, App, ObjectMapper, SchemaFileWriter, JsonType, ARRAY, BOOLEAN (+12 more)
 
 ### Community 2 - "TypeInferenceEngine"
 Cohesion: 0.34
-Nodes (4): AfterEach, ConverterCliMassConvertTest, BeforeEach, Test
+Nodes (4): ConverterCliMassConvertTest, AfterEach, BeforeEach, Test
 
 ### Community 3 - "OpenAPI Type Mapping"
 Cohesion: 0.09
@@ -104,8 +104,8 @@ Cohesion: 0.18
 Nodes (7): AvroJsonGenerator, ObjectMapper, Schema, AvroJsonGeneratorTest, BeforeEach, ObjectMapper, Test
 
 ### Community 7 - "Doc Mode & Schema Doc Fields"
-Cohesion: 0.09
-Nodes (13): ObjectMapper, Schema, JsonToAvroConverter, Schema, SchemaGenerator, AvroSchemaBuilderTest, Test, BeforeEach (+5 more)
+Cohesion: 0.13
+Nodes (10): Schema, SchemaGenerator, AvroSchemaBuilderTest, Test, BeforeEach, Test, SchemaGeneratorDocTest, BeforeEach (+2 more)
 
 ### Community 8 - "Enum Detection"
 Cohesion: 0.18
@@ -116,7 +116,7 @@ Cohesion: 0.12
 Nodes (10): JsonNode, TypeDetector, JsonNode, Override, Pattern, UuidDetector, BeforeEach, ObjectMapper (+2 more)
 
 ### Community 10 - "OpenAPI Parsing"
-Cohesion: 0.20
+Cohesion: 0.19
 Nodes (7): OpenAPIV3Parser, ParseOptions, OpenAPI, OpenApiParser, BeforeEach, Test, OpenApiParserTest
 
 ### Community 11 - "Avro Binary Encoding"
@@ -124,8 +124,8 @@ Cohesion: 0.15
 Nodes (9): GenericRecord, AvroSchemaValidationException, AvroBinaryEncoder, Schema, Schema, SchemaLoader, AvroBinaryEncoderTest, BeforeEach (+1 more)
 
 ### Community 12 - "General OpenAPI Test Fixtures"
-Cohesion: 0.09
-Nodes (8): App, CliArguments, Override, ConverterCli, EofSignal, QuitSignal, CliArgumentsTest, Test
+Cohesion: 0.06
+Nodes (13): CliArguments, Override, ConverterCli, EofSignal, QuitSignal, ObjectMapper, Schema, JsonToAvroConverter (+5 more)
 
 ### Community 13 - "Notif Envelope Generation"
 Cohesion: 0.23
@@ -144,8 +144,8 @@ Cohesion: 0.16
 Nodes (7): OpenAPI, Pattern, Schema, OpenApiToAvroTypeMapper, BeforeEach, Test, OpenApiToAvroTypeMapperTest
 
 ### Community 21 - "User (combines strings, booleans, numbers, enums, nested objects, arrays)"
-Cohesion: 0.44
-Nodes (3): RegistrySchemaGenerator, Test, RegistrySchemaGeneratorTest
+Cohesion: 0.31
+Nodes (5): ConverterCliJsonConvertTest, AfterEach, BeforeEach, Schema, Test
 
 ## Ambiguous Edges - Review These
 - `RegistrySchemaGenerator` → `OpenApiToAvroTypeMapper`  [AMBIGUOUS]
@@ -169,11 +169,11 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: calls) - confidence is low._
 - **What is the exact relationship between `OpenAPI/JSON to Avro Converter Tool` and `serializer/ package (JSON example + binary encoding)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `JSON/OpenAPI → Avro Converter Architecture Diagram` connect `Registry Schema Generation` to `CLI Entry Point & Arguments`, `OpenAPI Type Mapping`, `Avro Sample JSON Generation`, `Doc Mode & Schema Doc Fields`, `Enum Detection`, `UUID Detection`, `OpenAPI Parsing`, `Avro Binary Encoding`, `General OpenAPI Test Fixtures`, `AvroTypeInfo`, `User (combines strings, booleans, numbers, enums, nested objects, arrays)`?**
-  _High betweenness centrality (0.261) - this node is a cross-community bridge._
-- **Why does `AvroTypeInfo` connect `OpenAPI Type Mapping` to `CLI Entry Point & Arguments`, `Registry Schema Generation`, `Doc Mode & Schema Doc Fields`, `AvroTypeInfo`, `User (combines strings, booleans, numbers, enums, nested objects, arrays)`?**
-  _High betweenness centrality (0.147) - this node is a cross-community bridge._
-- **Why does `OpenApiToAvroTypeMapper` connect `AvroTypeInfo` to `CLI Entry Point & Arguments`, `Registry Schema Generation`, `Doc Mode & Schema Doc Fields`, `UUID Detection`, `User (combines strings, booleans, numbers, enums, nested objects, arrays)`?**
-  _High betweenness centrality (0.089) - this node is a cross-community bridge._
+- **Why does `JSON/OpenAPI → Avro Converter Architecture Diagram` connect `Registry Schema Generation` to `CLI Entry Point & Arguments`, `OpenAPI Type Mapping`, `Avro Sample JSON Generation`, `Doc Mode & Schema Doc Fields`, `Enum Detection`, `UUID Detection`, `OpenAPI Parsing`, `Avro Binary Encoding`, `General OpenAPI Test Fixtures`, `AvroTypeInfo`?**
+  _High betweenness centrality (0.243) - this node is a cross-community bridge._
+- **Why does `AvroTypeInfo` connect `OpenAPI Type Mapping` to `CLI Entry Point & Arguments`, `Registry Schema Generation`, `Doc Mode & Schema Doc Fields`, `General OpenAPI Test Fixtures`, `AvroTypeInfo`?**
+  _High betweenness centrality (0.154) - this node is a cross-community bridge._
+- **Why does `OpenApiToAvroTypeMapper` connect `AvroTypeInfo` to `CLI Entry Point & Arguments`, `Registry Schema Generation`, `Doc Mode & Schema Doc Fields`, `UUID Detection`, `General OpenAPI Test Fixtures`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **What connects `com.shanks:demo`, `NULL`, `BOOLEAN` to the rest of the system?**
   _46 weakly-connected nodes found - possible documentation gaps or missing edges._

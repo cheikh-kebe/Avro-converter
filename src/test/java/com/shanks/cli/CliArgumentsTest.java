@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CliArgumentsTest {
 
@@ -32,5 +33,55 @@ class CliArgumentsTest {
         CliArguments args = new CliArguments("does-not-exist.yaml", "out.avsc");
 
         assertThat(args.isInputDirectory()).isFalse();
+    }
+
+    @Test
+    void parse_readsFlagsInAnyOrderAndFirstPositionalAsSchemaName() {
+        CliArguments args = CliArguments.parse(new String[] {
+                "api.yaml", "out.avsc", "--doc", "--functional-perimeter", "users", "User",
+                "--registry", "--envelope", "minimal" });
+
+        assertThat(args.getSchemaName()).isEqualTo("User");
+        assertThat(args.isRegistry()).isTrue();
+        assertThat(args.toConversionOptions().includeDoc()).isTrue();
+        assertThat(args.toConversionOptions().namespace()).isEqualTo("com.shanks.generated.users");
+        assertThat(args.toConversionOptions().envelope()).isEqualTo("minimal");
+    }
+
+    @Test
+    void parse_readsFromRequestBodyValues() {
+        CliArguments args = CliArguments.parse(new String[] {
+                "api.yaml", "out.avsc", "--from-request-body", "/users", "POST" });
+
+        assertThat(args.hasRequestBody()).isTrue();
+        assertThat(args.getRequestBodyPath()).isEqualTo("/users");
+        assertThat(args.getRequestBodyMethod()).isEqualTo("POST");
+        assertThat(args.getSchemaName()).isNull();
+    }
+
+    @Test
+    void parse_rejectsMissingValuesAndUnknownOptions() {
+        assertThatThrownBy(() -> CliArguments.parse(new String[] { "a", "b", "--envelope" }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--envelope requires a value");
+        assertThatThrownBy(() -> CliArguments.parse(new String[] { "a", "b", "--from-request-body", "/users" }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("--from-request-body requires");
+        assertThatThrownBy(() -> CliArguments.parse(new String[] { "a", "b", "--bogus" }))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unknown option: --bogus");
+    }
+
+    @Test
+    void getOutputDirectory_treatsNonAvscPathAsDirectory() {
+        assertThat(new CliArguments("api.yaml", "out").getOutputDirectory()).isEqualTo("out");
+        assertThat(new CliArguments("api.yaml", "out/").getOutputDirectory()).isEqualTo("out");
+        assertThat(new CliArguments("api.yaml", "out/nested/").getOutputDirectory()).isEqualTo("out/nested");
+    }
+
+    @Test
+    void getOutputDirectory_usesParentOfAvscFile() {
+        assertThat(new CliArguments("api.yaml", "out/User.avsc").getOutputDirectory()).isEqualTo("out");
+        assertThat(new CliArguments("api.yaml", "User.avsc").getOutputDirectory()).isEqualTo(".");
     }
 }

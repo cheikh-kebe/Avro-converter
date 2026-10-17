@@ -1,6 +1,6 @@
 {
   "pom.xml": {
-    "mtime": 1772395964.6496272,
+    "mtime": 1792227103.2284553,
     "ast_hash": "4abdbcd115b04a17f265f6f89c3db034",
     "semantic_hash": "4abdbcd115b04a17f265f6f89c3db034"
   },
@@ -15,13 +15,13 @@
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/cli/ConverterCli.java": {
-    "mtime": 1788601748.3974621,
-    "ast_hash": "d51fdec24d9b0250b3569981113e5881",
+    "mtime": 1792227493.7880497,
+    "ast_hash": "cc2fa08625b019619f74243fe0913b55",
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/JsonToAvroConverter.java": {
-    "mtime": 1788629172.3823705,
-    "ast_hash": "e3664208bb505aa30fe248ecb5da81ae",
+    "mtime": 1792227474.41699,
+    "ast_hash": "c1b53ac163c6ba4035756ca5400379a8",
     "semantic_hash": ""
   },
   "src/main/java/com/shanks/converter/NotifWrapperGenerator.java": {
@@ -150,13 +150,13 @@
     "semantic_hash": "0756adb637464cc4bcf145fd6af30b65"
   },
   "CLAUDE.md": {
-    "mtime": 1788602229.1037302,
-    "ast_hash": "02f0a359d475c82c216f6f86ba859d27",
+    "mtime": 1792227522.1028993,
+    "ast_hash": "e755749a98ef3f4b72b8ad70db2bc5fd",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1788602201.7428296,
-    "ast_hash": "3ad0f8a138a37dbf5a1cc9f00e835d8a",
+    "mtime": 1788629815.3349767,
+    "ast_hash": "00f8640c7884ecc4b0ce4556c1cf85f3",
     "semantic_hash": ""
   },
   "test-openapi-deep.yaml": {
@@ -259,29 +259,14 @@
     "ast_hash": "fbc9b31c92bb56e3633334f7bed81b08",
     "semantic_hash": ""
   },
-  "SwagersSpecs/test-openapi-deep.yaml": {
-    "mtime": 1788602586.2059748,
-    "ast_hash": "0acffae81248d38831aa2e018eb9d835",
+  "src/test/java/com/shanks/cli/ConverterCliJsonConvertTest.java": {
+    "mtime": 1792227494.8171434,
+    "ast_hash": "cd975759c5d8729b2e26db4c87873845",
     "semantic_hash": ""
   },
-  "SwagersSpecs/test-openapi-refs.yaml": {
-    "mtime": 1788602586.2142549,
-    "ast_hash": "6e0049ca72d10ba6cc4af2cbefb511d0",
-    "semantic_hash": ""
-  },
-  "SwagersSpecs/test-openapi-requestbody.yaml": {
-    "mtime": 1788602586.226675,
-    "ast_hash": "72de5c6292519d12dd8026c22ee9c379",
-    "semantic_hash": ""
-  },
-  "SwagersSpecs/test-openapi-webhooks.yaml": {
-    "mtime": 1788602586.2349553,
-    "ast_hash": "82e5ea890489b304bbc9fe2f8d94f3c2",
-    "semantic_hash": ""
-  },
-  "SwagersSpecs/test-openapi.yaml": {
-    "mtime": 1788602586.2432353,
-    "ast_hash": "0f8ee4310ac25114b82c023e25791245",
+  "test-data.json": {
+    "mtime": 1792227105.0244637,
+    "ast_hash": "6cc1d6b2131a956db438082908ff20b7",
     "semantic_hash": ""
   }
 }

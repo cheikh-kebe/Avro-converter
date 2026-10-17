@@ -49,7 +49,7 @@ public class TypeInferenceEngine {
         }
 
         if (node.isNumber()) {
-            // Traiter les nombres comme des strings
+            // Numbers are mapped to strings to avoid precision loss
             return AvroTypeInfo.builder()
                     .avroType(Schema.Type.STRING)
                     .build();

@@ -15,7 +15,7 @@ class OpenApiToAvroConverterWebhookTest {
     void convertAll_generatesRecordSchemaForWebhookRequestBody(@TempDir Path outDir) throws IOException {
         OpenApiToAvroConverter converter = new OpenApiToAvroConverter();
 
-        converter.convertAll("test-openapi-webhooks.yaml", outDir.toString());
+        converter.convertAll("test-openapi-webhooks.yaml", outDir.toString(), ConversionOptions.defaults());
 
         Path generated = outDir.resolve("OnNewUser.v1.0.0.avsc");
         assertThat(generated).exists();
@@ -31,7 +31,7 @@ class OpenApiToAvroConverterWebhookTest {
     void convertAll_mapsAnyOfOptionalChildRecordAsNullableRecord(@TempDir Path outDir) throws IOException {
         OpenApiToAvroConverter converter = new OpenApiToAvroConverter();
 
-        converter.convertAll("test-openapi-webhooks.yaml", outDir.toString());
+        converter.convertAll("test-openapi-webhooks.yaml", outDir.toString(), ConversionOptions.defaults());
 
         String content = Files.readString(outDir.resolve("OnNewUser.v1.0.0.avsc"));
 

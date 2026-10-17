@@ -25,7 +25,7 @@ class SchemaFileWriter {
      * @throws IOException if file operations fail
      */
     static void write(String schemaJson, String outputPath) throws IOException {
-        write(schemaJson, outputPath, "default");
+        write(schemaJson, outputPath, ConversionOptions.DEFAULT_ENVELOPE);
     }
 
     /**
@@ -53,9 +53,11 @@ class SchemaFileWriter {
      * @param envelopeName the envelope template name (see {@link NotifWrapperGenerator})
      * @param apiVersion   the source API's version (e.g. "1.0.0"), or null/blank if
      *                     unavailable (e.g. JSON-input mode) — a no-op in that case
+     * @return the path of the main .avsc file actually written (version-suffixed
+     *         when {@code apiVersion} is set)
      * @throws IOException if file operations fail
      */
-    static void write(String schemaJson, String outputPath, String envelopeName, String apiVersion)
+    static String write(String schemaJson, String outputPath, String envelopeName, String apiVersion)
             throws IOException {
         schemaJson = injectVersionDoc(schemaJson, apiVersion);
         if (apiVersion != null && !apiVersion.isBlank()) {
@@ -80,6 +82,7 @@ class SchemaFileWriter {
         writeFile(outputFile, schemaJson);
         writeFile(new File(buildSuffixedPath(outputPath, ".min")), minJson);
         writeFile(new File(buildSuffixedPath(outputPath, ".webhook")), webhookJson);
+        return outputFile.getPath();
     }
 
     private static void writeFile(File file, String content) throws IOException {

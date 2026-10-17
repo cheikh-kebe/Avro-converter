@@ -134,21 +134,48 @@ class ConverterCliMassConvertTest {
     }
 
     @Test
-    void registryYes_stillProducesValidOutput(@TempDir Path in, @TempDir Path out) throws IOException {
+    void docYes_includesDescriptionsAndReportsGeneratedFile(@TempDir Path in, @TempDir Path out) throws IOException {
         writeSpec(in, "widget.yaml", WIDGET_SPEC);
-        ConverterCli cli = cliWithInput("1\no\nn\n\n\n");
+        ConverterCli cli = cliWithInput("1\no\n\n\n");
 
         int exitCode = cli.run(new String[] { in.toString(), outArg(out) });
 
         assertThat(exitCode).isZero();
         String content = Files.readString(out.resolve("Widget.v1.0.0.avsc"));
         assertThat(content).contains("\"type\" : \"record\"");
+        assertThat(outCapture.toString()).contains("Generated: ").contains("Widget.v1.0.0.avsc");
+    }
+
+    @Test
+    void outputDirWithoutTrailingSlash_isUsedAsDirectory(@TempDir Path in, @TempDir Path out) throws IOException {
+        writeSpec(in, "widget.yaml", WIDGET_SPEC);
+        ConverterCli cli = cliWithInput("1\n\n\n\n");
+        Path target = out.resolve("generated");
+
+        int exitCode = cli.run(new String[] { in.toString(), target.toString() });
+
+        assertThat(exitCode).isZero();
+        assertThat(target.resolve("Widget.v1.0.0.avsc")).exists();
+    }
+
+    @Test
+    void bareEnumSchemas_areNotOffered(@TempDir Path in, @TempDir Path out) throws IOException {
+        writeSpec(in, "widget.yaml", WIDGET_SPEC + """
+                    Color:
+                      type: string
+                      enum: [RED, BLUE]
+                """);
+        ConverterCli cli = cliWithInput("s\n");
+
+        cli.run(new String[] { in.toString(), outArg(out) });
+
+        assertThat(outCapture.toString()).contains("1) Widget").doesNotContain("Color");
     }
 
     @Test
     void functionalPerimeterValue_appliesNamespace(@TempDir Path in, @TempDir Path out) throws IOException {
         writeSpec(in, "widget.yaml", WIDGET_SPEC);
-        ConverterCli cli = cliWithInput("1\nn\nn\nbilling\n\n");
+        ConverterCli cli = cliWithInput("1\nn\nbilling\n\n");
 
         int exitCode = cli.run(new String[] { in.toString(), outArg(out) });
 

@@ -4,36 +4,27 @@ import com.shanks.model.AvroTypeInfo;
 import org.apache.avro.Schema;
 
 /**
- * Generates Avro schemas from inferred type information, as separate per-schema output files.
+ * Generates Avro schemas from inferred/mapped type information.
  *
- * Schema construction itself is delegated to {@link AvroSchemaBuilder}; this class only owns
- * the standard-mode configuration (doc fields, functional perimeter) and serialization.
+ * Schema construction itself is delegated to {@link AvroSchemaBuilder}; this class only applies
+ * the {@link ConversionOptions} (doc fields, functional perimeter namespace) and serializes.
+ *
+ * The output is a single self-contained JSON object: {@code Schema.toString(true)} embeds each
+ * named type inline at its first occurrence and references it by full name afterwards, which is
+ * the format IBM Schema Registry and Confluent Schema Registry expect. Standard and registry mode
+ * therefore share this one generator.
  */
 public class SchemaGenerator {
 
-    private static final String DEFAULT_NAMESPACE = "com.shanks.generated";
-    private boolean includeDoc = false;
-    private String namespace = DEFAULT_NAMESPACE;
-
     /**
-     * Set whether to include doc fields in generated schemas.
+     * Generate an Avro schema from the root type information, with default options.
      *
-     * @param includeDoc true to include doc fields from OpenAPI descriptions
+     * @param rootType   the root type information
+     * @param recordName the name for the root record
+     * @return the generated Avro schema
      */
-    public void setIncludeDoc(boolean includeDoc) {
-        this.includeDoc = includeDoc;
-    }
-
-    /**
-     * Set the functional perimeter to append to the default namespace
-     * (e.g. "users" produces "com.shanks.generated.users").
-     *
-     * @param functionalPerimeter the functional perimeter name, or null/blank to reset to the default namespace
-     */
-    public void setFunctionalPerimeter(String functionalPerimeter) {
-        this.namespace = (functionalPerimeter == null || functionalPerimeter.trim().isEmpty())
-                ? DEFAULT_NAMESPACE
-                : DEFAULT_NAMESPACE + "." + functionalPerimeter.trim();
+    public Schema generateSchema(AvroTypeInfo rootType, String recordName) {
+        return generateSchema(rootType, recordName, ConversionOptions.defaults());
     }
 
     /**
@@ -41,20 +32,11 @@ public class SchemaGenerator {
      *
      * @param rootType   the root type information
      * @param recordName the name for the root record
+     * @param options    doc fields and namespace to apply
      * @return the generated Avro schema
      */
-    public Schema generateSchema(AvroTypeInfo rootType, String recordName) {
-        return new AvroSchemaBuilder(includeDoc).build(rootType, recordName, namespace);
-    }
-
-    /**
-     * Convert the schema to pretty-printed JSON.
-     *
-     * @param schema the Avro schema
-     * @return the pretty-printed JSON string
-     */
-    public String toPrettyJson(Schema schema) {
-        return schema.toString(true);
+    public Schema generateSchema(AvroTypeInfo rootType, String recordName, ConversionOptions options) {
+        return new AvroSchemaBuilder(options.includeDoc()).build(rootType, recordName, options.namespace());
     }
 
     /**
@@ -63,9 +45,10 @@ public class SchemaGenerator {
      *
      * @param rootType   the root type information
      * @param recordName the name for the root record
+     * @param options    doc fields and namespace to apply
      * @return the pretty-printed JSON string
      */
-    public String generateSchemaJson(AvroTypeInfo rootType, String recordName) {
-        return generateSchema(rootType, recordName).toString(true);
+    public String generateSchemaJson(AvroTypeInfo rootType, String recordName, ConversionOptions options) {
+        return generateSchema(rootType, recordName, options).toString(true);
     }
 }

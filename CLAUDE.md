@@ -11,8 +11,11 @@ mvn clean package
 # Run application with JSON input
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="data.json schema.avsc"
 
-# Run application with OpenAPI input (all schemas - separate files)
-mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml output-dir/"
+# Run application with JSON input (registry mode + custom functional-perimeter namespace)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="data.json schema.avsc --registry --functional-perimeter orders"
+
+# Run application with OpenAPI input (all record schemas - separate files; an output not ending in .avsc is a directory, trailing slash optional)
+mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml output-dir"
 
 # Run application with OpenAPI input (specific schema - standard mode)
 mvn exec:java -Dexec.mainClass="com.shanks.App" -Dexec.args="api.yaml User.avsc User"
@@ -60,9 +63,16 @@ java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --envelope m
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User --registry --stacktrace
 
 # Run JAR in interactive directory (mass conversion) mode: for each spec file in specs/,
-# prompts for a schema then per-file flags (registry?/doc?/functional-perimeter/envelope)
+# prompts for a schema then per-file flags (doc?/functional-perimeter/envelope)
 java -jar target/json-to-avro-converter.jar specs/ out/
-printf "1\no\nn\n\n\n" | java -jar target/json-to-avro-converter.jar specs/ out/
+printf "1\no\n\n\n" | java -jar target/json-to-avro-converter.jar specs/ out/
+
+# Generate a sample JSON document from an Avro schema
+java -jar target/json-to-avro-converter.jar generate src/main/avro/ResultResponse.avsc output.json ResultResponse
+
+# Encode JSON to Avro binary (or --generate a sample first)
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc data.json output.avro ResultResponse
+java -jar target/json-to-avro-converter.jar encode src/main/avro/ResultResponse.avsc --generate output.avro ResultResponse
 
 # Generate Java classes from Avro schemas (automatic with Maven plugin)
 mvn clean compile  # Generates classes during compile phase
@@ -113,30 +123,37 @@ This is a converter tool that supports:
 2. **JSON Data → Avro Schema**: Type inference from JSON data
 3. **Avro Schema → Java Classes**: Automatic generation via Maven plugin during build
 
-### Conversion Modes (OpenAPI only)
+### Conversion Modes
 
-- **Standard Mode** (default): Generates one file per schema using Avro's Schema API; `schema.toString(true)` handles deduplication of repeated `$ref` types automatically
-- **Registry Mode** (`--registry`): Generates a single self-contained JSON object compatible with IBM Schema Registry and Confluent Schema Registry
-  - Recommended for schema registry use cases
+All flags are parsed in one place, `CliArguments.parse`, in any order after `<input> <output>`; the first non-flag argument there is the schema name. An unknown `--option` is rejected. The flags that shape the generated schema (`--doc`, `--functional-perimeter`, `--envelope`) are carried by an immutable `ConversionOptions` record passed to every converter method — converters hold no per-call state.
+
+`--registry`, `--functional-perimeter` and `--envelope` apply to both OpenAPI and JSON data input. `--doc` and `--from-request-body` are OpenAPI-only (a JSON data file has no descriptions or paths; `--doc` on JSON input is accepted and reported as ignored).
+
+- **Schema output** (every mode): a single self-contained JSON object built by `SchemaGenerator` → `AvroSchemaBuilder` and serialized with `schema.toString(true)`
   - Single top-level `record` type (not a JSON array)
-  - Nested types embedded inline at first occurrence, referenced by full qualified name on subsequent uses
-  - Both modes build through the same `AvroSchemaBuilder` (real `org.apache.avro.Schema` objects) and only differ in which thin wrapper serializes the result — dedup and naming validation are therefore identical in both modes (see [Avro Name Validation](#avro-name-validation))
+  - Nested types embedded inline at first occurrence, referenced by full qualified name on subsequent uses (deduplication of repeated `$ref` types is automatic)
+  - This is the format IBM Schema Registry and Confluent Schema Registry expect
+- **Registry Mode** (`--registry`): accepted for compatibility and echoed as `Mode: Registry`, but produces exactly the same output as without the flag — every schema is already registry-compatible (see above). There is no separate registry generator anymore.
 - **Doc Mode** (`--doc`): Includes `doc` fields in the generated Avro schema, extracted from OpenAPI `description` fields
-  - Can be combined with any other mode (e.g., `--registry --doc`)
-  - Off by default: without this flag, no `doc` fields are included
-- **Functional Perimeter** (`--functional-perimeter <name>`): Appends `<name>` to the default namespace (`com.shanks.generated` → `com.shanks.generated.<name>`)
-  - Can be combined with any other mode/flag, in any argument position after `<output.avsc>`
-  - Applies to both Standard Mode (`SchemaGenerator`) and Registry Mode (`RegistrySchemaGenerator`)
+  - Can be combined with any other flag
+  - Off by default: without this flag, no description `doc` fields are included (the API-version `doc` note is separate, see [Output Files](#output-files))
+- **Functional Perimeter** (`--functional-perimeter <name>`): Appends `<name>` to the default namespace (`com.shanks.generated` → `com.shanks.generated.<name>`, computed by `ConversionOptions.namespace()`)
+  - Can be combined with any other flag, in any argument position after `<output>`
   - Off by default: without this flag, the namespace stays `com.shanks.generated`
 - **Envelope Selection** (`--envelope <name>`): Selects which notif envelope template builds the `.webhook.avsc` output (see [Output Files](#output-files))
   - Loads `src/main/resources/envelopes/<name>.json` from the classpath
   - Defaults to `default` (the original fixed structure) when omitted
-  - Applies to both OpenAPI and JSON conversion modes
-- **Interactive Directory Mode** (input path is a directory instead of a file): for every `*.yaml`/`*.yml`/`*.json` spec found directly in that directory (non-recursive), prompts on stdin for which schema to convert (`components/schemas` keys plus webhook `requestBody` payload names — no response schemas), then prompts for `--registry`/`--doc`/`--functional-perimeter`/`--envelope` for that one file
-  - CLI-level flags are ignored in this mode — everything is re-prompted per file, with plain defaults (registry off, doc off, no perimeter, `default` envelope) accepted by pressing Enter
-  - `s`/`skip` skips a file, `q`/`quit` (or EOF on stdin) aborts the rest of the batch; a file that fails to parse or convert is journaled and does not stop the batch
+  - Validated (`NotifWrapperGenerator.validate`) at the start of every conversion, before any file or directory is created
+- **All schemas** (OpenAPI input, no schema name, no `--from-request-body`): writes one file set per record schema (`components/schemas` plus webhook `requestBody` payloads) into the output directory. The output argument is a directory unless it ends with `.avsc` (then its parent is used): `out`, `out/` and `out/User.avsc` all write into `out` (`CliArguments.getOutputDirectory`)
+- **Request body** (`--from-request-body <path> <method>`): converts that operation's `requestBody` schema (`application/json`, else the first media type). The record name is the capitalized `operationId`, or, without one, the path segments plus the method (e.g. `POST /orders/{orderId}/cancel` → `OrdersOrderIdCancelPost`)
+- **Interactive Directory Mode** (input path is a directory instead of a file): for every `*.yaml`/`*.yml`/`*.json` spec found directly in that directory (non-recursive), prompts on stdin for which schema to convert, then prompts for doc / functional perimeter / envelope for that one file
+  - Only record schemas are offered (`components/schemas` keys plus webhook `requestBody` payload names — no response schemas, no bare enums/scalars, which can't be converted on their own); a spec with no record schema is reported as failed
+  - CLI-level flags are ignored in this mode — everything is re-prompted per file, with plain defaults (doc off, no perimeter, `default` envelope) accepted by pressing Enter. There is no registry prompt (see Registry Mode above)
+  - Each converted file prints `Generated: <path>`; `s`/`skip` skips a file, `q`/`quit` (or EOF on stdin) aborts the rest of the batch; a file that fails to parse or convert is journaled and does not stop the batch
   - Exit code `1` if at least one file failed, `0` otherwise; requires an interactive stdin, not meant for non-interactive CI pipelines
+  - The output directory follows the same rule as "All schemas" (`out` or `out/`)
   - Implemented by `OpenApiToAvroConverter.loadSchemas`/`convertNamed` (converter side) and `ConverterCli.runMassConvert` (CLI prompt loop)
+- **`generate` / `encode` sub-commands** (`com.shanks.serializer`): `generate <schema.avsc> <output.json> [SchemaName]` writes a sample JSON document for a schema (`AvroJsonGenerator`); `encode <schema.avsc> <input.json|--generate> <output.avro> [SchemaName]` encodes JSON to Avro binary (`AvroBinaryEncoder`), optionally from a generated sample. `SchemaLoader` loads the schema, picking `SchemaName` from a multi-record file
 
 ### Output Files
 
@@ -147,6 +164,8 @@ Every schema conversion (`SchemaFileWriter.write`) always produces three files f
 | `<name>.avsc` | Pretty-printed Avro schema (the raw converted schema) |
 | `<name>.min.avsc` | Minified, single-line copy of the same schema |
 | `<name>.webhook.avsc` | The schema consolidated into a `notif` envelope template (see below) |
+
+**API version stamping (OpenAPI input only):** when the spec declares `info.version`, the three file names get a `.v<version>` suffix (`User.avsc` → `User.v1.0.0.avsc`, `User.v1.0.0.min.avsc`, `User.v1.0.0.webhook.avsc`) and the root schema gets `"doc": "API version: <version>"` (appended to an existing doc with ` | `). This happens with or without `--doc`. JSON data input has no version, so its file names are used as given.
 
 **`notif` envelope (`NotifWrapperGenerator`) — envelope-agnostic:** the envelope structure is not hardcoded in Java. It's loaded from a JSON template at `src/main/resources/envelopes/<envelopeName>.json` (`envelopeName` selected via `--envelope <name>`, default `"default"`). `NotifWrapperGenerator` treats the template as opaque data: it recursively searches the tree for an Avro field definition named `payload` (an object with `"name": "payload"` and a sibling `"type"` key) and overwrites its `type` with the generated schema, regardless of how deeply that field is nested or what else surrounds it. Adding a new envelope version is just adding a new template file — no code changes required.
 
@@ -169,7 +188,7 @@ Notif (root record)
 
 - Templates use the literal token `${namespace}` anywhere a namespace should follow the generated schema's own root `namespace` (so it follows `--functional-perimeter` automatically); the token is substituted by simple string replacement before the template is parsed as JSON.
 - The `.webhook.avsc` file is always generated — there is no flag to opt out of it, only of which envelope template shapes it.
-- Works identically for Standard Mode and Registry Mode output, since it operates on the already-generated schema JSON string (parsed and re-embedded via Jackson), not the Avro `Schema` object.
+- Works on the already-generated schema JSON string (parsed and re-embedded via Jackson), not the Avro `Schema` object.
 - An unknown `--envelope <name>` (no matching template on the classpath) or a template with no `payload` field fails the conversion with a clear error before any files are written.
 
 ### Java Code Generation (Avro → Java) with Maven Plugin
@@ -307,6 +326,8 @@ mvn clean install
 
 > All numeric and date/time types are intentionally mapped to `string` to avoid precision loss and simplify cross-system compatibility.
 
+> A property that is not listed in its object's `required` array becomes a nullable union `["null", <type>]` with `"default": null`. In JSON data input, a `null` value becomes `["null", "string"]` with `"default": null`.
+
 ### Namespace Strategy
 
 Each named type (record or enum) receives a hierarchical namespace encoding its full ancestry path in the schema tree. This guarantees unique full names even when the same type name appears at multiple positions.
@@ -327,17 +348,17 @@ Both `Address` records exist at different hierarchy positions and have different
 
 **Custom root namespace (`--functional-perimeter <name>`):** the root namespace (`com.shanks.generated` above) becomes `com.shanks.generated.<name>`, and every hierarchical child namespace is derived from that new root — e.g. with `--functional-perimeter orders`, `com.shanks.generated.order.Customer` becomes `com.shanks.generated.orders.order.Customer`.
 
-**Applies to:** records and enums, in both standard mode and registry mode. Enums always emit an explicit `"namespace"` field to prevent Avro namespace inheritance from a sibling record.
+**Applies to:** records and enums, for every input and flag combination. Enums always emit an explicit `"namespace"` field to prevent Avro namespace inheritance from a sibling record.
 
 ### $ref Handling
 
 - **Forward refs**: SwaggerParser resolves the entire OpenAPI file before conversion — `$ref` to schemas defined later in the file are transparent.
-- **Same `$ref` at the same level** (e.g., `shippingAddress` and `billingAddress` both referencing `Address`): both modes build real `Schema` objects via `AvroSchemaBuilder`, then serialize with `schema.toString(true)` — Avro's own `Names` context deduplicates by full name automatically (first occurrence inline, second occurrence emits `"com.shanks.generated.Address"`). This is identical in Standard and Registry mode; neither hand-rolls its own dedup tracking anymore.
+- **Same `$ref` at the same level** (e.g., `shippingAddress` and `billingAddress` both referencing `Address`): both modes build real `Schema` objects via `AvroSchemaBuilder`, then serialize with `schema.toString(true)` — Avro's own `Names` context deduplicates by full name automatically (first occurrence inline, second occurrence emits `"com.shanks.generated.Address"`). No dedup tracking is hand-rolled.
 - **Same `$ref` at different levels**: each occurrence gets a different hierarchical namespace, so each is a distinct named type with no conflict
 
 ### Avro Name Validation
 
-`AvroSchemaBuilder` (`src/main/java/com/shanks/converter/AvroSchemaBuilder.java`) is the single place that turns mapped/inferred type information into real `org.apache.avro.Schema` objects, for **both** Standard Mode and Registry Mode — `SchemaGenerator` and `RegistrySchemaGenerator` are thin wrappers around it that only differ in serialization (`schema.toString(true)` either way). Because there is exactly one construction path, Avro's naming rule (`[A-Za-z_][A-Za-z0-9_]*`, i.e. a value must start with a letter or underscore) is enforced identically in both modes for:
+`AvroSchemaBuilder` (`src/main/java/com/shanks/converter/AvroSchemaBuilder.java`) is the single place that turns mapped/inferred type information into real `org.apache.avro.Schema` objects, for every conversion — `SchemaGenerator` is a thin wrapper around it that applies `ConversionOptions` and serializes with `schema.toString(true)`. Because there is exactly one construction path, Avro's naming rule (`[A-Za-z_][A-Za-z0-9_]*`, i.e. a value must start with a letter or underscore) is enforced identically everywhere for:
 - record names
 - field names
 - enum names
@@ -345,7 +366,7 @@ Both `Address` records exist at different hierarchy positions and have different
 
 Before calling `Schema.createRecord` / `Schema.createEnum`, `AvroSchemaBuilder` pre-validates each of the above and throws `AvroSchemaValidationException` with a human-readable message (offending value, its full-name context, the rule, and a fix hint) instead of letting a raw `SchemaParseException` surface. `Schema.createRecord`/`Schema.createEnum` are still called and wrapped in a try/catch as a safety net for any Avro rule not pre-validated above.
 
-**CLI error output** (`ConverterCli.run`): `AvroSchemaValidationException` is caught separately and printed without a Java stack trace (the message is already actionable). Any other unexpected exception prints a short message and hides the stack trace by default — pass `--stacktrace` to print it in full. This applies to any conversion command (JSON or OpenAPI, either mode).
+**CLI error output** (`ConverterCli.run`): `AvroSchemaValidationException` and `InvalidEnvelopeException` (unknown, unreadable or payload-less envelope template) are caught separately and printed as `Error: <message>` with no stack trace hint (the message is already actionable; `--stacktrace` still prints the trace). Invalid arguments (`IllegalArgumentException`) print the message followed by the usage. Any other unexpected exception prints `Error during operation: <message>` and hides the stack trace by default — pass `--stacktrace` to print it in full. In interactive directory mode, per-file failures are journaled with their message only.
 
 ### Known Namespace Behaviour
 
@@ -355,7 +376,7 @@ When compiling multiple `.avsc` files with `mvn compile`, Avro's Maven plugin pr
 
 The converter automatically extracts and preserves `pattern` constraints from OpenAPI/Swagger string fields:
 - When a string field has a `pattern` attribute in the OpenAPI spec, it's included in the Avro schema
-- Patterns are preserved in both standard and registry modes
+- Patterns are preserved for every conversion
 - Example OpenAPI field:
   ```yaml
   phoneNumber:
@@ -378,12 +399,15 @@ The project follows SOLID principles with separate packages for:
   - `JsonToAvroConverter`: JSON → Avro schema conversion
   - `OpenApiToAvroConverter`: OpenAPI → Avro schema conversion
   - `AvroSchemaBuilder`: shared `AvroTypeInfo` → `org.apache.avro.Schema` construction, used by both modes below (see [Avro Name Validation](#avro-name-validation))
-  - `SchemaGenerator`: Standard mode (inline types) — thin wrapper over `AvroSchemaBuilder`
-  - `RegistrySchemaGenerator`: Registry mode (single self-contained schema for IBM/Confluent Schema Registry) — thin wrapper over `AvroSchemaBuilder`
+  - `SchemaGenerator`: the single generator (self-contained, registry-compatible schema) — thin wrapper over `AvroSchemaBuilder`
+  - `ConversionOptions`: immutable record of the schema-shaping flags (doc, functional perimeter → namespace, envelope) and the `DEFAULT_NAMESPACE`/`DEFAULT_ENVELOPE` constants
+  - `SchemaFileWriter` / `NotifWrapperGenerator`: write the three output files / build the envelope-wrapped one
+  - `InvalidEnvelopeException`: thrown for a missing, malformed or payload-less envelope template, shown as-is by the CLI
   - `AvroSchemaValidationException`: thrown for invalid Avro names/symbols, carries a human-readable message shown as-is by the CLI
 - `cli/`: Command-line interface
   - `ConverterCli`: Main CLI orchestrator
-  - `CliArguments`: Arguments parser for schema generation
+  - `CliArguments`: parses every flag of the convert command, the schema name, and the output directory rule
+- `serializer/`: `generate`/`encode` sub-commands (`SchemaLoader`, `AvroJsonGenerator`, `AvroBinaryEncoder`)
 - `util/`: Type detectors (UUID, ENUM)
 - `model/`: Generated Java classes from Avro schemas (via Maven plugin)
 
