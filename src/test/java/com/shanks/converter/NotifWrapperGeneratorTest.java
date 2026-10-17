@@ -48,14 +48,30 @@ class NotifWrapperGeneratorTest {
     @Test
     void shouldThrowWhenEnvelopeIsMissing() {
         assertThatThrownBy(() -> NotifWrapperGenerator.wrap(SCHEMA_JSON, "does-not-exist"))
-                .isInstanceOf(IOException.class)
+                .isInstanceOf(InvalidEnvelopeException.class)
                 .hasMessageContaining("does-not-exist");
     }
 
     @Test
     void shouldThrowWhenEnvelopeHasNoPayloadField() {
         assertThatThrownBy(() -> NotifWrapperGenerator.wrap(SCHEMA_JSON, "no-payload-test"))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(InvalidEnvelopeException.class)
+                .hasMessageContaining("payload");
+    }
+
+    @Test
+    void validate_acceptsBundledTemplates() {
+        NotifWrapperGenerator.validate("default");
+        NotifWrapperGenerator.validate("minimal");
+    }
+
+    @Test
+    void validate_rejectsMissingTemplateAndTemplateWithoutPayload() {
+        assertThatThrownBy(() -> NotifWrapperGenerator.validate("does-not-exist"))
+                .isInstanceOf(InvalidEnvelopeException.class)
+                .hasMessageContaining("does-not-exist");
+        assertThatThrownBy(() -> NotifWrapperGenerator.validate("no-payload-test"))
+                .isInstanceOf(InvalidEnvelopeException.class)
                 .hasMessageContaining("payload");
     }
 

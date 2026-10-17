@@ -10,15 +10,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SchemaGeneratorDocTest {
 
     private SchemaGenerator generator;
+    private ConversionOptions options;
 
     @BeforeEach
     void setUp() {
         generator = new SchemaGenerator();
+        options = ConversionOptions.defaults();
     }
 
     @Test
     void shouldIncludeDocWhenEnabled() {
-        generator.setIncludeDoc(true);
+        options = options.withIncludeDoc(true);
 
         AvroTypeInfo typeInfo = AvroTypeInfo.builder()
                 .avroType(Schema.Type.RECORD)
@@ -34,7 +36,7 @@ class SchemaGeneratorDocTest {
                         .build())
                 .build();
 
-        Schema schema = generator.generateSchema(typeInfo, "User");
+        Schema schema = generator.generateSchema(typeInfo, "User", options);
 
         assertThat(schema).isNotNull();
         assertThat(schema.getDoc()).isEqualTo("Represents a user in the system");
@@ -48,7 +50,7 @@ class SchemaGeneratorDocTest {
 
     @Test
     void shouldExcludeDocWhenDisabled() {
-        generator.setIncludeDoc(false);
+        options = options.withIncludeDoc(false);
 
         AvroTypeInfo typeInfo = AvroTypeInfo.builder()
                 .avroType(Schema.Type.RECORD)
@@ -60,7 +62,7 @@ class SchemaGeneratorDocTest {
                         .build())
                 .build();
 
-        Schema schema = generator.generateSchema(typeInfo, "User");
+        Schema schema = generator.generateSchema(typeInfo, "User", options);
 
         assertThat(schema).isNotNull();
         assertThat(schema.getDoc()).isNull();
@@ -71,7 +73,7 @@ class SchemaGeneratorDocTest {
 
     @Test
     void shouldIncludeEnumDocWhenEnabled() {
-        generator.setIncludeDoc(true);
+        options = options.withIncludeDoc(true);
 
         AvroTypeInfo typeInfo = AvroTypeInfo.builder()
                 .avroType(Schema.Type.ENUM)
@@ -82,7 +84,7 @@ class SchemaGeneratorDocTest {
                 .addEnumSymbol("REJECTED")
                 .build();
 
-        Schema schema = generator.generateSchema(typeInfo, "Status");
+        Schema schema = generator.generateSchema(typeInfo, "Status", options);
 
         assertThat(schema).isNotNull();
         assertThat(schema.getType()).isEqualTo(Schema.Type.ENUM);
@@ -91,7 +93,7 @@ class SchemaGeneratorDocTest {
 
     @Test
     void shouldExcludeEnumDocWhenDisabled() {
-        generator.setIncludeDoc(false);
+        options = options.withIncludeDoc(false);
 
         AvroTypeInfo typeInfo = AvroTypeInfo.builder()
                 .avroType(Schema.Type.ENUM)
@@ -101,7 +103,7 @@ class SchemaGeneratorDocTest {
                 .addEnumSymbol("APPROVED")
                 .build();
 
-        Schema schema = generator.generateSchema(typeInfo, "Status");
+        Schema schema = generator.generateSchema(typeInfo, "Status", options);
 
         assertThat(schema).isNotNull();
         assertThat(schema.getType()).isEqualTo(Schema.Type.ENUM);
@@ -119,7 +121,7 @@ class SchemaGeneratorDocTest {
                         .build())
                 .build();
 
-        Schema schema = generator.generateSchema(typeInfo, "User");
+        Schema schema = generator.generateSchema(typeInfo, "User", options);
 
         assertThat(schema.getDoc()).isNull();
     }

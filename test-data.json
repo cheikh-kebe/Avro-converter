@@ -1,0 +1,106 @@
+{
+  "orderId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "reference": "ORD-2026-000123",
+  "status": "PENDING_VALIDATION",
+  "isPaid": true,
+  "isGift": false,
+  "totalAmount": 1249.99,
+  "itemCount": 3,
+  "loyaltyPoints": 9007199254740993,
+  "discountRate": 0.15,
+  "createdAt": "2026-10-17T09:30:00Z",
+  "deliveryDate": "2026-10-20",
+  "comment": null,
+  "customer": {
+    "customerId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "email": "jane.doe@example.com",
+    "phoneNumber": "+33612345678",
+    "vip": true,
+    "middleName": null,
+    "address": {
+      "street": "12 rue de la Paix",
+      "city": "Paris",
+      "zipCode": "75002",
+      "country": "FR",
+      "geo": {
+        "latitude": 48.8698,
+        "longitude": 2.3316
+      }
+    },
+    "contactInfo": {
+      "email": "jane.pro@example.com",
+      "address": {
+        "street": "1 avenue des Champs-Élysées",
+        "city": "Paris",
+        "zipCode": "75008"
+      }
+    }
+  },
+  "payment": {
+    "method": "CREDIT_CARD",
+    "transactionId": "9b2e4c1a-7d3f-4e8b-a6c5-1f0e2d3c4b5a",
+    "billingInfo": {
+      "holderName": "Jane Doe",
+      "address": {
+        "street": "12 rue de la Paix",
+        "city": "Paris",
+        "zipCode": "75002"
+      }
+    }
+  },
+  "items": [
+    {
+      "sku": "SKU-001",
+      "productId": "11111111-2222-3333-4444-555555555555",
+      "label": "Clavier mécanique",
+      "quantity": 1,
+      "unitPrice": 149.99,
+      "inStock": true
+    },
+    {
+      "sku": "SKU-002",
+      "productId": "66666666-7777-8888-9999-000000000000",
+      "label": "Écran 27 pouces",
+      "quantity": 2,
+      "unitPrice": 549.99,
+      "inStock": false
+    }
+  ],
+  "tags": ["express", "fragile", "cadeau"],
+  "channels": ["WEB", "MOBILE_APP", "IN_STORE"],
+  "relatedOrderIds": [
+    "0f8fad5b-d9cb-469f-a165-70867728950e",
+    "7c9e6679-7425-40de-944b-e07fc1f97ef7"
+  ],
+  "ratings": [5, 4, 3],
+  "flags": [true, false, true],
+  "optionalNotes": ["première commande", null, "livrer le matin"],
+  "mixedValues": ["texte", 42, true, null],
+  "matrix": [[1, 2], [3, 4]],
+  "emptyList": [],
+  "allNulls": [null, null],
+  "metadata": {
+    "source": "checkout-service",
+    "version": "2.4.1",
+    "traceId": "4bf92f35-77b3-4da7-a3ce-929d0e0e4736",
+    "audit": {
+      "createdBy": "system",
+      "updatedBy": null,
+      "history": [
+        {
+          "event": "CREATED",
+          "at": "2026-10-17T09:30:00Z"
+        },
+        {
+          "event": "VALIDATED",
+          "at": "2026-10-17T09:31:12Z"
+        }
+      ]
+    }
+  },
+  "first name": "champ avec espace",
+  "shipping-method": "champ avec tiret",
+  "promo.code": "champ avec point"
+}

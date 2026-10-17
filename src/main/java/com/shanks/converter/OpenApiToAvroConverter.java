@@ -31,16 +31,12 @@ public class OpenApiToAvroConverter {
 
     private final OpenApiParser parser;
     private final SchemaGenerator schemaGenerator;
-    private final RegistrySchemaGenerator registrySchemaGenerator;
-    private String envelopeName = "default";
 
     /**
      * Constructor with default components.
      */
     public OpenApiToAvroConverter() {
-        this.parser = new OpenApiParser();
-        this.schemaGenerator = new SchemaGenerator();
-        this.registrySchemaGenerator = new RegistrySchemaGenerator();
+        this(new OpenApiParser(), new SchemaGenerator());
     }
 
     /**
@@ -52,69 +48,34 @@ public class OpenApiToAvroConverter {
     public OpenApiToAvroConverter(OpenApiParser parser, SchemaGenerator schemaGenerator) {
         this.parser = parser;
         this.schemaGenerator = schemaGenerator;
-        this.registrySchemaGenerator = new RegistrySchemaGenerator();
-    }
-
-    /**
-     * Set whether to include doc fields in generated schemas.
-     *
-     * @param includeDoc true to include doc fields from OpenAPI descriptions
-     */
-    public void setIncludeDoc(boolean includeDoc) {
-        this.schemaGenerator.setIncludeDoc(includeDoc);
-        this.registrySchemaGenerator.setIncludeDoc(includeDoc);
-    }
-
-    /**
-     * Set the functional perimeter to append to the default namespace
-     * (e.g. "users" produces "com.shanks.generated.users").
-     *
-     * @param functionalPerimeter the functional perimeter name, or null/blank to
-     *                            reset to the default namespace
-     */
-    public void setFunctionalPerimeter(String functionalPerimeter) {
-        this.schemaGenerator.setFunctionalPerimeter(functionalPerimeter);
-        this.registrySchemaGenerator.setFunctionalPerimeter(functionalPerimeter);
-    }
-
-    /**
-     * Set the envelope template used to build the notif-wrapped (.webhook.avsc)
-     * output.
-     *
-     * @param envelopeName the envelope template name (see
-     *                     {@link NotifWrapperGenerator})
-     */
-    public void setEnvelope(String envelopeName) {
-        this.envelopeName = envelopeName;
     }
 
     /**
      * Convert an OpenAPI file to Avro schema files.
-     * Generates one Avro schema file per schema defined in components/schemas,
-     * plus one per webhook operation's requestBody payload.
+     * Generates one Avro schema file per record schema defined in components/schemas,
+     * plus one per webhook operation's requestBody payload. Bare enums and scalars are
+     * skipped.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
      * @param outputDirectory  directory where Avro schema files will be written
-     * @throws IOException if file operations fail
+     * @param options          doc fields, namespace and envelope to apply
+     * @throws IOException if the file cannot be parsed, it exposes no record schema, or
+     *                      writing fails
      */
-    public void convertAll(String inputOpenApiPath, String outputDirectory) throws IOException {
-        OpenAPI openAPI = parser.parse(inputOpenApiPath);
-        Map<String, Schema<?>> schemas = collectAllSchemas(openAPI);
-
-        if (schemas.isEmpty()) {
-            throw new IOException("No schemas found in OpenAPI specification "
-                    + "(neither components/schemas nor webhooks)");
-        }
+    public void convertAll(String inputOpenApiPath, String outputDirectory, ConversionOptions options)
+            throws IOException {
+        NotifWrapperGenerator.validate(options.envelope());
+        SpecSchemas spec = loadSchemas(inputOpenApiPath);
 
         File outputDir = new File(outputDirectory);
         if (!outputDir.exists() && !outputDir.mkdirs()) {
             throw new IOException("Failed to create output directory: " + outputDirectory);
         }
 
-        OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
-        String apiVersion = safeVersion(openAPI);
-        for (Map.Entry<String, Schema<?>> entry : schemas.entrySet()) {
-            generateRecordFile(mapper, entry.getValue(), entry.getKey(), outputDir, apiVersion);
+        for (String schemaName : spec.getSchemaNames()) {
+            String outputPath = new File(outputDir, schemaName + ".avsc").getPath();
+            String written = convertNamed(spec, schemaName, outputPath, options);
+            System.out.println("Generated: " + new File(written).getName());
         }
     }
 
@@ -124,14 +85,13 @@ public class OpenApiToAvroConverter {
     }
 
     /**
-     * Parse the OpenAPI file and collect every named schema it exposes, for
-     * interactive per-file selection (mass conversion mode): the same set that
-     * {@link #convertAll} writes to disk (components/schemas plus each webhook
-     * operation's requestBody payload), without writing anything.
+     * Parse the OpenAPI file and collect every record schema it exposes: the same set that
+     * {@link #convertAll} writes to disk (components/schemas plus each webhook operation's
+     * requestBody payload), without writing anything. Bare enums and scalars are left out,
+     * since they can't be converted on their own.
      *
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @throws IOException if the file cannot be parsed, or if it exposes no schema
-     *                      at all (neither components/schemas nor webhooks)
+     * @throws IOException if the file cannot be parsed, or if it exposes no record schema
      */
     public SpecSchemas loadSchemas(String inputOpenApiPath) throws IOException {
         OpenAPI openAPI = parser.parse(inputOpenApiPath);
@@ -140,40 +100,45 @@ public class OpenApiToAvroConverter {
             throw new IOException("No schemas found in OpenAPI specification "
                     + "(neither components/schemas nor webhooks)");
         }
-        return new SpecSchemas(new OpenApiToAvroTypeMapper(openAPI), schemas, safeVersion(openAPI));
+
+        OpenApiToAvroTypeMapper mapper = new OpenApiToAvroTypeMapper(openAPI);
+        Map<String, AvroTypeInfo> records = new LinkedHashMap<>();
+        for (Map.Entry<String, Schema<?>> entry : schemas.entrySet()) {
+            if (entry.getValue() == null) {
+                continue;
+            }
+            AvroTypeInfo typeInfo = mapper.mapSchema(entry.getValue(), entry.getKey());
+            if (typeInfo.getAvroType() == Type.RECORD) {
+                records.put(entry.getKey(), typeInfo);
+            }
+        }
+        if (records.isEmpty()) {
+            throw new IOException("No record schemas found in OpenAPI specification "
+                    + "(only bare enums/scalars: " + schemas.keySet() + ")");
+        }
+        return new SpecSchemas(records, safeVersion(openAPI));
     }
 
     /**
      * Convert one schema previously collected by {@link #loadSchemas} to an Avro
-     * schema file, using whichever mode/flags are currently set on this converter
-     * (see {@link #setIncludeDoc}, {@link #setFunctionalPerimeter}, {@link #setEnvelope}).
+     * schema file.
      *
      * @param spec           the parsed spec, as returned by {@link #loadSchemas}
      * @param schemaName     the schema name to convert (one of {@code spec.getSchemaNames()})
      * @param outputAvscPath path to output AVSC file
-     * @param registryMode   true to generate a self-contained registry schema, false for standard mode
-     * @throws IOException if the schema name is unknown, if it does not resolve to an
-     *                      Avro record (bare enums/scalars can't be converted alone), or
-     *                      if writing the output files fails
+     * @param options        doc fields, namespace and envelope to apply
+     * @return the path of the main .avsc file actually written (version-suffixed when the
+     *         spec declares info.version)
+     * @throws IOException if the schema name is unknown or writing the output files fails
      */
-    public void convertNamed(SpecSchemas spec, String schemaName, String outputAvscPath, boolean registryMode)
-            throws IOException {
-        Schema<?> schema = spec.schemasByName.get(schemaName);
-        if (schema == null) {
+    public String convertNamed(SpecSchemas spec, String schemaName, String outputAvscPath,
+            ConversionOptions options) throws IOException {
+        AvroTypeInfo typeInfo = spec.recordsByName.get(schemaName);
+        if (typeInfo == null) {
             throw new IOException("Schema '" + schemaName + "' not found. Available: "
-                    + spec.schemasByName.keySet());
+                    + spec.recordsByName.keySet());
         }
-
-        AvroTypeInfo typeInfo = spec.mapper.mapSchema(schema, schemaName);
-        if (typeInfo.getAvroType() != Type.RECORD) {
-            throw new IOException("'" + schemaName + "' resolves to a " + typeInfo.getAvroType()
-                    + ", not a record — bare enums/scalars can't be converted on their own");
-        }
-
-        String schemaJson = registryMode
-                ? registrySchemaGenerator.generateRegistrySchema(typeInfo, schemaName)
-                : schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName, spec.apiVersion);
+        return write(typeInfo, schemaName, outputAvscPath, options, spec.apiVersion);
     }
 
     /**
@@ -217,24 +182,21 @@ public class OpenApiToAvroConverter {
     }
 
     /**
-     * Immutable handle on a parsed spec's available named schemas, returned by
+     * Immutable handle on a parsed spec's record schemas, already mapped, returned by
      * {@link #loadSchemas} and consumed by {@link #convertNamed} — avoids re-parsing
      * the file between "list the available schemas" and "convert the chosen one".
      */
     public static final class SpecSchemas {
-        private final OpenApiToAvroTypeMapper mapper;
-        private final Map<String, Schema<?>> schemasByName;
+        private final Map<String, AvroTypeInfo> recordsByName;
         private final String apiVersion;
 
-        private SpecSchemas(OpenApiToAvroTypeMapper mapper, Map<String, Schema<?>> schemasByName,
-                String apiVersion) {
-            this.mapper = mapper;
-            this.schemasByName = schemasByName;
+        private SpecSchemas(Map<String, AvroTypeInfo> recordsByName, String apiVersion) {
+            this.recordsByName = recordsByName;
             this.apiVersion = apiVersion;
         }
 
         public List<String> getSchemaNames() {
-            return new ArrayList<>(schemasByName.keySet());
+            return new ArrayList<>(recordsByName.keySet());
         }
     }
 
@@ -244,29 +206,14 @@ public class OpenApiToAvroConverter {
      * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
      * @param schemaName       name of the schema in components/schemas to convert
      * @param outputAvscPath   path to output AVSC file
+     * @param options          doc fields, namespace and envelope to apply
      * @throws IOException if file operations fail
      */
-    public void convert(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
+    public void convert(String inputOpenApiPath, String schemaName, String outputAvscPath,
+            ConversionOptions options) throws IOException {
+        NotifWrapperGenerator.validate(options.envelope());
         MappedSchema resolved = loadAndMap(inputOpenApiPath, schemaName);
-        String schemaJson = schemaGenerator.generateSchemaJson(resolved.typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName, resolved.apiVersion);
-    }
-
-    /**
-     * Convert a specific schema from an OpenAPI file to an IBM Schema Registry
-     * compatible Avro schema file.
-     * Produces a single self-contained JSON object with all nested types embedded
-     * inline.
-     *
-     * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @param schemaName       name of the schema in components/schemas to convert
-     * @param outputAvscPath   path to output AVSC file
-     * @throws IOException if file operations fail
-     */
-    public void convertRegistry(String inputOpenApiPath, String schemaName, String outputAvscPath) throws IOException {
-        MappedSchema resolved = loadAndMap(inputOpenApiPath, schemaName);
-        String schemaJson = registrySchemaGenerator.generateRegistrySchema(resolved.typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName, resolved.apiVersion);
+        write(resolved.typeInfo, schemaName, outputAvscPath, options, resolved.apiVersion);
     }
 
     /**
@@ -277,31 +224,21 @@ public class OpenApiToAvroConverter {
      * @param pathKey          the OpenAPI path (e.g. "/users")
      * @param httpMethod       the HTTP method of the operation (e.g. "POST")
      * @param outputAvscPath   path to output AVSC file
+     * @param options          doc fields, namespace and envelope to apply
      * @throws IOException if file operations fail
      */
     public void convertFromRequestBody(String inputOpenApiPath, String pathKey, String httpMethod,
-            String outputAvscPath) throws IOException {
+            String outputAvscPath, ConversionOptions options) throws IOException {
+        NotifWrapperGenerator.validate(options.envelope());
         RequestBodySchema resolved = loadAndMapFromRequestBody(inputOpenApiPath, pathKey, httpMethod);
-        String schemaJson = schemaGenerator.generateSchemaJson(resolved.typeInfo, resolved.schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName, resolved.apiVersion);
+        write(resolved.typeInfo, resolved.schemaName, outputAvscPath, options, resolved.apiVersion);
     }
 
-    /**
-     * Convert the requestBody schema of a specific OpenAPI operation to an IBM
-     * Schema Registry
-     * compatible Avro schema file.
-     *
-     * @param inputOpenApiPath path to input OpenAPI file (YAML or JSON)
-     * @param pathKey          the OpenAPI path (e.g. "/users")
-     * @param httpMethod       the HTTP method of the operation (e.g. "POST")
-     * @param outputAvscPath   path to output AVSC file
-     * @throws IOException if file operations fail
-     */
-    public void convertRegistryFromRequestBody(String inputOpenApiPath, String pathKey, String httpMethod,
-            String outputAvscPath) throws IOException {
-        RequestBodySchema resolved = loadAndMapFromRequestBody(inputOpenApiPath, pathKey, httpMethod);
-        String schemaJson = registrySchemaGenerator.generateRegistrySchema(resolved.typeInfo, resolved.schemaName);
-        SchemaFileWriter.write(schemaJson, outputAvscPath, envelopeName, resolved.apiVersion);
+    /** Generate the schema JSON and write it (plus its companions); returns the main file path. */
+    private String write(AvroTypeInfo typeInfo, String schemaName, String outputAvscPath,
+            ConversionOptions options, String apiVersion) throws IOException {
+        String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName, options);
+        return SchemaFileWriter.write(schemaJson, outputAvscPath, options.envelope(), apiVersion);
     }
 
     /**
@@ -326,7 +263,7 @@ public class OpenApiToAvroConverter {
 
     /**
      * Holds the resolved AvroTypeInfo and the source API's version for a
-     * {@code convert}/{@code convertRegistry} conversion.
+     * {@code convert} conversion.
      */
     private static final class MappedSchema {
         final AvroTypeInfo typeInfo;
@@ -459,27 +396,6 @@ public class OpenApiToAvroConverter {
     }
 
     /**
-     * Map a single OpenAPI schema and, if it resolves to a record, write its
-     * .avsc (+ .min.avsc / .webhook.avsc) files. Bare enums and scalars are
-     * skipped.
-     */
-    private void generateRecordFile(OpenApiToAvroTypeMapper mapper, Schema<?> schema,
-            String schemaName, File outputDir, String apiVersion) throws IOException {
-        if (schema == null) {
-            return;
-        }
-        AvroTypeInfo typeInfo = mapper.mapSchema(schema, schemaName);
-        if (typeInfo.getAvroType() != Type.RECORD) {
-            return;
-        }
-
-        String outputPath = new File(outputDir, schemaName + ".avsc").getPath();
-        String schemaJson = schemaGenerator.generateSchemaJson(typeInfo, schemaName);
-        SchemaFileWriter.write(schemaJson, outputPath, envelopeName, apiVersion);
-        System.out.println("Generated: " + schemaName + ".avsc");
-    }
-
-    /**
      * Pull the schema from application/json, falling back to the first available
      * media type.
      */
@@ -492,12 +408,5 @@ public class OpenApiToAvroConverter {
             mediaType = content.values().iterator().next();
         }
         return mediaType == null ? null : mediaType.getSchema();
-    }
-
-    /**
-     * Get the schema generator (for testing).
-     */
-    public SchemaGenerator getSchemaGenerator() {
-        return schemaGenerator;
     }
 }

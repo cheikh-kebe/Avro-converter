@@ -21,12 +21,13 @@ class OpenApiToAvroConverterMassPickerTest {
     private final OpenApiToAvroConverter converter = new OpenApiToAvroConverter();
 
     @Test
-    void loadSchemas_listsComponentSchemasWithoutWebhookEntries() throws IOException {
+    void loadSchemas_listsRecordComponentSchemasButNotBareEnums() throws IOException {
         OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi.yaml");
 
         List<String> names = spec.getSchemaNames();
 
-        assertThat(names).contains("Name", "CardType");
+        assertThat(names).contains("Name");
+        assertThat(names).doesNotContain("CardType");
     }
 
     @Test
@@ -44,7 +45,7 @@ class OpenApiToAvroConverterMassPickerTest {
         OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi.yaml");
         String outputPath = outDir.resolve("Name.avsc").toString();
 
-        converter.convertNamed(spec, "Name", outputPath, false);
+        converter.convertNamed(spec, "Name", outputPath, ConversionOptions.defaults());
 
         String content = Files.readString(outDir.resolve("Name.v1.0.0.avsc"));
         assertThat(content).contains("\"type\" : \"record\"");
@@ -56,18 +57,7 @@ class OpenApiToAvroConverterMassPickerTest {
         OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi-webhooks.yaml");
         String outputPath = outDir.resolve("OnNewUser.avsc").toString();
 
-        converter.convertNamed(spec, "OnNewUser", outputPath, false);
-
-        String content = Files.readString(outDir.resolve("OnNewUser.v1.0.0.avsc"));
-        assertThat(content).contains("\"type\" : \"record\"");
-    }
-
-    @Test
-    void convertNamed_registryModeProducesSelfContainedSchema(@TempDir Path outDir) throws IOException {
-        OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi-webhooks.yaml");
-        String outputPath = outDir.resolve("OnNewUser.avsc").toString();
-
-        converter.convertNamed(spec, "OnNewUser", outputPath, true);
+        converter.convertNamed(spec, "OnNewUser", outputPath, ConversionOptions.defaults());
 
         String content = Files.readString(outDir.resolve("OnNewUser.v1.0.0.avsc"));
         assertThat(content).contains("\"type\" : \"record\"");
@@ -77,18 +67,39 @@ class OpenApiToAvroConverterMassPickerTest {
     void convertNamed_unknownNameThrows() throws IOException {
         OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi.yaml");
 
-        assertThatThrownBy(() -> converter.convertNamed(spec, "DoesNotExist", "out.avsc", false))
+        assertThatThrownBy(() -> converter.convertNamed(spec, "DoesNotExist", "out.avsc", ConversionOptions.defaults()))
                 .isInstanceOf(IOException.class)
                 .hasMessageContaining("not found");
     }
 
     @Test
-    void convertNamed_nonRecordSchemaThrowsExplicitError() throws IOException {
+    void convertNamed_bareEnumIsNotOfferedSoItIsNotFound() throws IOException {
         OpenApiToAvroConverter.SpecSchemas spec = converter.loadSchemas("test-openapi.yaml");
 
-        assertThatThrownBy(() -> converter.convertNamed(spec, "CardType", "out.avsc", false))
+        assertThatThrownBy(() -> converter.convertNamed(spec, "CardType", "out.avsc", ConversionOptions.defaults()))
                 .isInstanceOf(IOException.class)
-                .hasMessageContaining("not a record");
+                .hasMessageContaining("not found");
+    }
+
+    @Test
+    void loadSchemas_throwsWhenSpecHasOnlyBareEnums(@TempDir Path dir) throws IOException {
+        Path enumOnlySpec = dir.resolve("enums.yaml");
+        Files.writeString(enumOnlySpec, """
+                openapi: 3.0.3
+                info:
+                  title: Enums
+                  version: 1.0.0
+                paths: {}
+                components:
+                  schemas:
+                    Color:
+                      type: string
+                      enum: [RED, BLUE]
+                """);
+
+        assertThatThrownBy(() -> converter.loadSchemas(enumOnlySpec.toString()))
+                .isInstanceOf(IOException.class)
+                .hasMessageContaining("No record schemas");
     }
 
     @Test

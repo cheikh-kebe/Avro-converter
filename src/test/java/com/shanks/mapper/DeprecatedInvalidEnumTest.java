@@ -1,7 +1,7 @@
 package com.shanks.mapper;
 
 import com.shanks.converter.AvroSchemaValidationException;
-import com.shanks.converter.RegistrySchemaGenerator;
+import com.shanks.converter.ConversionOptions;
 import com.shanks.converter.SchemaGenerator;
 import com.shanks.model.AvroTypeInfo;
 import com.shanks.parser.OpenApiParser;
@@ -81,26 +81,20 @@ class DeprecatedInvalidEnumTest {
     void originalSpec_stillFails_whenInvalidEnumIsNotDeprecated() {
         AvroTypeInfo order = map(SPEC_V1, "Order");
 
-        assertThatThrownBy(() -> new SchemaGenerator().generateSchemaJson(order, "Order"))
-                .isInstanceOf(AvroSchemaValidationException.class)
-                .hasMessageContaining("1ST_CLASS");
-        assertThatThrownBy(() -> new RegistrySchemaGenerator().generateRegistrySchema(order, "Order"))
+        assertThatThrownBy(() -> new SchemaGenerator().generateSchemaJson(order, "Order", ConversionOptions.defaults()))
                 .isInstanceOf(AvroSchemaValidationException.class)
                 .hasMessageContaining("1ST_CLASS");
     }
 
     @Test
-    void patchedSpec_dropsDeprecatedInvalidEnumField_inBothModes() {
+    void patchedSpec_dropsDeprecatedInvalidEnumField() {
         AvroTypeInfo order = map(SPEC_PATCHED, "Order");
 
         assertThat(order.getFields()).containsOnlyKeys("id", "travelClassCode");
 
-        String standard = new SchemaGenerator().generateSchemaJson(order, "Order");
-        String registry = new RegistrySchemaGenerator().generateRegistrySchema(order, "Order");
-        for (String json : new String[]{standard, registry}) {
-            assertThat(json).doesNotContain("travelClass\"").doesNotContain("1ST_CLASS");
-            assertThat(json).contains("travelClassCode").contains("FIRST_CLASS");
-        }
+        String json = new SchemaGenerator().generateSchemaJson(order, "Order", ConversionOptions.defaults());
+        assertThat(json).doesNotContain("travelClass\"").doesNotContain("1ST_CLASS");
+        assertThat(json).contains("travelClassCode").contains("FIRST_CLASS");
     }
 
     @Test
@@ -125,7 +119,7 @@ class DeprecatedInvalidEnumTest {
         OpenAPI v1 = parser.parse("test-openapi-deprecated-v1.yaml");
         AvroTypeInfo v1Booking = new OpenApiToAvroTypeMapper(v1)
                 .mapSchema(v1.getComponents().getSchemas().get("Booking"), "Booking");
-        assertThatThrownBy(() -> new RegistrySchemaGenerator().generateRegistrySchema(v1Booking, "Booking"))
+        assertThatThrownBy(() -> new SchemaGenerator().generateSchemaJson(v1Booking, "Booking", ConversionOptions.defaults()))
                 .isInstanceOf(AvroSchemaValidationException.class);
 
         OpenAPI patched = parser.parse("test-openapi-deprecated-patched.yaml");
@@ -138,11 +132,8 @@ class DeprecatedInvalidEnumTest {
                 "bookingId", "travelClassCode", "ticketFormatCode", "mealCodes",
                 "channel", "salesChannel", "status");
 
-        String standard = new SchemaGenerator().generateSchemaJson(booking, "Booking");
-        String registry = new RegistrySchemaGenerator().generateRegistrySchema(booking, "Booking");
-        for (String json : new String[]{standard, registry}) {
-            assertThat(json).doesNotContain("1ST_CLASS", "2D_BARCODE", "0_MEAL");
-        }
+        String json = new SchemaGenerator().generateSchemaJson(booking, "Booking", ConversionOptions.defaults());
+        assertThat(json).doesNotContain("1ST_CLASS", "2D_BARCODE", "0_MEAL");
     }
 
     @Test
@@ -164,7 +155,7 @@ class DeprecatedInvalidEnumTest {
                 """, "Order");
 
         assertThat(order.getFields()).containsKey("travelClass");
-        assertThatThrownBy(() -> new SchemaGenerator().generateSchemaJson(order, "Order"))
+        assertThatThrownBy(() -> new SchemaGenerator().generateSchemaJson(order, "Order", ConversionOptions.defaults()))
                 .isInstanceOf(AvroSchemaValidationException.class)
                 .hasMessageContaining("1ST_CLASS");
     }

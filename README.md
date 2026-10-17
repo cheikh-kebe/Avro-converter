@@ -110,7 +110,9 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 <a id="documentation-detaillee"></a>
 ## 📖 Documentation Détaillée
 
-[Diagramme d'architecture](./docs/diagrams/converter-architecture.drawio.png)
+[Diagramme d'architecture (à jour)](./docs/diagrams/converter-architecture-2026-10.drawio.png) — ouvrable et éditable dans draw.io
+
+[Ancien diagramme d'architecture](./docs/diagrams/converter-architecture.drawio.png) (avant la fusion de `RegistrySchemaGenerator` dans `SchemaGenerator`)
 
 <a id="openapi-vers-avro"></a>
 ### OpenAPI/Swagger → Avro
@@ -121,7 +123,7 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 - Extraction automatique des patterns regex
 - Résolution des `$ref` (y compris références directes et $ref multiples sur le même schéma)
 - **Conversion depuis un schéma nommé** (`components/schemas`) ou **depuis le `requestBody`** d'une opération (`--from-request-body`)
-- **Mode registry** (`--registry`) : schéma unique auto-contenu compatible IBM/Confluent Schema Registry
+- **Mode registry** (`--registry`) : conservé pour compatibilité ; tous les schémas générés sont déjà un objet unique auto-contenu compatible IBM/Confluent Schema Registry, la sortie est donc identique avec ou sans ce flag
 - **Mode doc** (`--doc`) : inclut les champs `doc` dans le schéma Avro, extraits des `description` OpenAPI
 - **Périmètre fonctionnel** (`--functional-perimeter <nom>`) : ajoute un suffixe au namespace par défaut (`com.shanks.generated.<nom>`)
 - **Enveloppe `notif`** (`--envelope <nom>`) : choisit le template d'enveloppe (`src/main/resources/envelopes/<nom>.json`) utilisé pour le `.webhook.avsc` — `default` si omis
@@ -132,7 +134,7 @@ Chaque commande de conversion (JSON→Avro et OpenAPI→Avro, quel que soit le m
 
 ```bash
 # Mode standard (fichiers séparés, types inline)
-java -jar target/json-to-avro-converter.jar api.yaml output-dir/
+java -jar target/json-to-avro-converter.jar api.yaml output-dir   # le "/" final est optionnel : une sortie qui ne finit pas par .avsc est un dossier
 
 # Schéma nommé depuis components/schemas
 java -jar target/json-to-avro-converter.jar api.yaml User.avsc User
@@ -224,10 +226,9 @@ java -jar target/json-to-avro-converter.jar specs/ out/
 
 Pour chaque fichier, dans l'ordre :
 
-1. La liste de **tous les schémas nommés** exposés par la spec est affichée — les clés de `components/schemas`, et le payload `requestBody` de chaque opération de chaque webhook (`webhooks:`, OpenAPI 3.1). Les schémas de réponse (`Response<Code>`) ne sont pas listés.
+1. La liste des **schémas de type record** exposés par la spec est affichée — les clés de `components/schemas`, et le payload `requestBody` de chaque opération de chaque webhook (`webhooks:`, OpenAPI 3.1). Les schémas de réponse (`Response<Code>`) et les enums/scalaires isolés (non convertibles seuls) ne sont pas listés.
 2. Vous choisissez **un seul schéma** par fichier, au clavier — par numéro ou par nom exact. `s` (ou `skip`) ignore ce fichier ; `q` (ou `quit`) arrête tout le lot (les fichiers restants sont marqués ignorés).
-3. Une fois le schéma choisi, 4 questions permettent de régler la conversion **pour ce fichier précis** — chacune acceptée en appuyant sur Entrée pour garder la valeur par défaut :
-   - `Mode registry ?` (o/N)
+3. Une fois le schéma choisi, 3 questions permettent de régler la conversion **pour ce fichier précis** — chacune acceptée en appuyant sur Entrée pour garder la valeur par défaut :
    - `Inclure les docs ?` (o/N)
    - `Functional perimeter (namespace, vide = aucun)`
    - `Envelope (default)`
@@ -240,11 +241,10 @@ Pour chaque fichier, dans l'ordre :
   3) OnNewUser              (webhook: newUser POST)
 Schéma à convertir (numéro ou nom, 's' = ignorer ce fichier, 'q' = arrêter) : 1
 
-  Mode registry ? (o/N) :
   Inclure les docs ? (o/N) : o
   Functional perimeter (namespace, vide = aucun) :
   Envelope (default) :
-  Generated: Order.avsc
+  Generated: out/Order.v1.0.0.avsc
 
 2 converti(s), 0 ignoré(s), 0 en échec
 ```
@@ -457,7 +457,7 @@ mvn test  # tests unitaires (JUnit 5 + AssertJ)
 <a id="exemples-rapides"></a>
 ## 📝 Exemples Rapides
 
-**Mode Registry vs Standard (OpenAPI):**
+**Schéma auto-contenu (OpenAPI):**
 
 ```yaml
 # api.yaml
@@ -474,13 +474,10 @@ components:
 ```
 
 ```bash
-# Mode registry (1 fichier auto-contenu, types imbriqués inline puis référencés par nom qualifié)
-java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --registry
-# → Enum défini inline à la première occurrence, référencé par nom qualifié ensuite
-
-# Mode standard (types inline dans le record, dédupliqués automatiquement par l'API Avro)
+# Avec ou sans --registry, la sortie est la même : 1 objet auto-contenu,
+# types imbriqués inline à la première occurrence puis référencés par nom qualifié
 java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard
-# → Enum inline dans le record
+java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --registry
 
 # Avec doc (descriptions OpenAPI incluses comme champs "doc" dans le schéma Avro)
 java -jar target/json-to-avro-converter.jar test-openapi.yaml CreditCard.avsc CreditCard --doc
