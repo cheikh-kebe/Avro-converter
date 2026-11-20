@@ -1,0 +1,52 @@
+openapi: 3.0.3
+info:
+  title: Deprecated Enums Test API
+  version: 1.0.0
+  description: |
+    ORIGINAL spec (v1.0.0) — conversion to Avro FAILS.
+    Several enums have symbols starting with a digit (1ST_CLASS, 2D_BARCODE, 0_MEAL),
+    which Avro forbids (rule: [A-Za-z_][A-Za-z0-9_]*).
+    See test-openapi-deprecated-patched.yaml for the fixed version.
+paths: {}
+
+components:
+  schemas:
+
+    Booking:
+      type: object
+      description: A train ticket booking
+      required:
+        - bookingId
+        - travelClass
+      properties:
+        bookingId:
+          type: string
+          format: uuid
+
+        # Case 1 — inline enum, invalid symbols
+        travelClass:
+          type: string
+          description: Travel class
+          enum: [1ST_CLASS, 2ND_CLASS]
+
+        # Case 2 — $ref to a component enum, invalid symbol
+        ticketFormat:
+          $ref: '#/components/schemas/TicketFormat'
+
+        # Case 3 — array of enums, invalid symbol
+        mealOptions:
+          type: array
+          description: Meals ordered on board
+          items:
+            type: string
+            enum: [0_MEAL, VEGETARIAN, STANDARD]
+
+        # Valid enum — always converted
+        status:
+          type: string
+          enum: [CONFIRMED, CANCELLED]
+
+    TicketFormat:
+      type: string
+      description: Ticket delivery format
+      enum: [PDF, 2D_BARCODE]

@@ -17,6 +17,9 @@ import java.util.regex.Pattern;
 public class OpenApiToAvroTypeMapper {
 
     private static final Pattern INVALID_CHARS = Pattern.compile("[^a-zA-Z0-9_]");
+    /** Avro naming rule, mirrored from {@code AvroSchemaBuilder}. */
+    private static final Pattern AVRO_NAME = Pattern.compile("[A-Za-z_][A-Za-z0-9_]*");
+    private static final String X_REPLACED_BY = "x-replaced-by";
 
     private final OpenAPI openAPI;
 
@@ -272,6 +275,16 @@ public class OpenApiToAvroTypeMapper {
 
                 AvroTypeInfo fieldType = mapSchema(propSchema, propName);
 
+                // A deprecated field whose enum cannot be expressed in Avro (e.g. a symbol
+                // starting with a digit) is dropped instead of failing the whole conversion:
+                // the spec already points consumers to its replacement (x-replaced-by).
+                // Valid deprecated fields are kept untouched.
+                String invalidSymbol = findInvalidEnumName(fieldType);
+                if (invalidSymbol != null && isDeprecated(propSchema)) {
+                    warnSkippedDeprecatedField(fieldName, propName, propSchema, invalidSymbol);
+                    continue;
+                }
+
                 // Make field nullable if not required
                 if (!requiredFields.contains(propName)) {
                     fieldType = makeNullable(fieldType);
@@ -292,6 +305,118 @@ public class OpenApiToAvroTypeMapper {
         }
 
         return builder.build();
+    }
+
+    /**
+     * Return the first enum name or symbol in {@code typeInfo}'s subtree that violates
+     * Avro's naming rule, or {@code null} when every enum in it is valid.
+     */
+    private String findInvalidEnumName(AvroTypeInfo typeInfo) {
+        if (typeInfo == null) {
+            return null;
+        }
+        switch (typeInfo.getAvroType()) {
+            case ENUM:
+                if (!isValidAvroName(typeInfo.getRecordName())) {
+                    return typeInfo.getRecordName();
+                }
+                if (typeInfo.getEnumSymbols() != null) {
+                    for (String symbol : typeInfo.getEnumSymbols()) {
+                        if (!isValidAvroName(symbol)) {
+                            return symbol;
+                        }
+                    }
+                }
+                return null;
+            case ARRAY:
+                return findInvalidEnumName(typeInfo.getArrayItemType());
+            case UNION:
+                if (typeInfo.getUnionTypes() != null) {
+                    for (AvroTypeInfo branch : typeInfo.getUnionTypes()) {
+                        String invalid = findInvalidEnumName(branch);
+                        if (invalid != null) {
+                            return invalid;
+                        }
+                    }
+                }
+                return null;
+            case RECORD:
+                if (typeInfo.getFields() != null) {
+                    for (AvroTypeInfo field : typeInfo.getFields().values()) {
+                        String invalid = findInvalidEnumName(field);
+                        if (invalid != null) {
+                            return invalid;
+                        }
+                    }
+                }
+                return null;
+            default:
+                return null;
+        }
+    }
+
+    private static boolean isValidAvroName(String value) {
+        return value != null && AVRO_NAME.matcher(value).matches();
+    }
+
+    /**
+     * True when a property is marked deprecated in the spec, either on the property itself
+     * or on the component it references ({@code $ref}, single-branch {@code allOf}, or the
+     * {@code items} of an array). Only an explicit {@code deprecated: true} counts: a
+     * {@code DEPRECATED} description or an {@code x-replaced-by} extension alone is not
+     * enough, so a field is never silently dropped on a loose hint.
+     */
+    private boolean isDeprecated(Schema<?> schema) {
+        if (schema == null) {
+            return false;
+        }
+        if (hasDeprecationMarker(schema)) {
+            return true;
+        }
+        if (schema.get$ref() != null) {
+            return hasDeprecationMarker(resolveRef(schema.get$ref()));
+        }
+        if (schema.getAllOf() != null && schema.getAllOf().size() == 1) {
+            return isDeprecated(schema.getAllOf().get(0));
+        }
+        if (schema.getItems() != null) {
+            return isDeprecated(schema.getItems());
+        }
+        return false;
+    }
+
+    private static boolean hasDeprecationMarker(Schema<?> schema) {
+        return schema != null && Boolean.TRUE.equals(schema.getDeprecated());
+    }
+
+    /** Collect the {@code x-replaced-by} value from the property or its referenced schema. */
+    private String replacedBy(Schema<?> schema) {
+        for (Schema<?> candidate : Arrays.asList(schema,
+                schema.get$ref() != null ? resolveRef(schema.get$ref()) : null,
+                schema.getAllOf() != null && schema.getAllOf().size() == 1 ? schema.getAllOf().get(0) : null,
+                schema.getItems())) {
+            if (candidate != null && candidate.getExtensions() != null
+                    && candidate.getExtensions().get(X_REPLACED_BY) != null) {
+                return candidate.getExtensions().get(X_REPLACED_BY).toString();
+            }
+        }
+        return null;
+    }
+
+    private void warnSkippedDeprecatedField(String recordName, String propName,
+                                            Schema<?> propSchema, String invalidSymbol) {
+        String replacement = replacedBy(propSchema);
+        System.err.printf("WARN: deprecated field \"%s.%s\" skipped: enum value \"%s\" is not a valid Avro name%s%n",
+                capitalize(recordName), propName, invalidSymbol,
+                replacement != null ? " (replaced by: " + replacement + ")" : "");
+    }
+
+    private Schema<?> resolveRef(String ref) {
+        if (openAPI == null || openAPI.getComponents() == null
+                || openAPI.getComponents().getSchemas() == null) {
+            return null;
+        }
+        return openAPI.getComponents().getSchemas().get(extractSchemaNameFromRef(ref));
     }
 
     /**
