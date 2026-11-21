@@ -20,5 +20,7 @@
   "18": "JSON Converter & Util Docs",
   "19": "Maven Project Root",
   "20": "AvroTypeInfo",
-  "21": "User (combines strings, booleans, numbers, enums, nested objects, arrays)"
+  "21": "User (combines strings, booleans, numbers, enums, nested objects, arrays)",
+  "22": "RequestBody Conversion Test API (test-openapi-requestbody.yaml) — validates OpenAPI requestBody -> Avro conversion",
+  "23": "AvroSchemaBuilderTest"
 }
