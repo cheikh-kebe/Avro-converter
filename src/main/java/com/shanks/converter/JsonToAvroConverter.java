@@ -2,7 +2,6 @@ package com.shanks.converter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.shanks.converter.interfaces.TypeDetector;
 import com.shanks.model.AvroTypeInfo;
 import com.shanks.util.EnumDetector;
 import com.shanks.util.UuidDetector;
@@ -11,7 +10,6 @@ import org.apache.avro.Schema;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * Main converter orchestrating JSON to Avro schema conversion.
@@ -25,21 +23,14 @@ public class JsonToAvroConverter {
     private final ObjectMapper objectMapper;
     private final TypeInferenceEngine inferenceEngine;
     private final SchemaGenerator schemaGenerator;
-    private String envelopeName = "default";
 
     /**
      * Constructor with default type detectors.
      */
     public JsonToAvroConverter() {
-        this.objectMapper = new ObjectMapper();
-
-        List<TypeDetector> detectors = Arrays.asList(
-                new UuidDetector(),
-                new EnumDetector()
-        );
-
-        this.inferenceEngine = new TypeInferenceEngine(detectors);
-        this.schemaGenerator = new SchemaGenerator();
+        this(new ObjectMapper(),
+                new TypeInferenceEngine(Arrays.asList(new UuidDetector(), new EnumDetector())),
+                new SchemaGenerator());
     }
 
     /**
@@ -62,30 +53,23 @@ public class JsonToAvroConverter {
      *
      * @param inputJsonPath path to input JSON file
      * @param outputAvscPath path to output AVSC file
+     * @param options namespace and envelope to apply (a JSON data file has no
+     *                descriptions, so {@code includeDoc} has no effect)
      * @throws IOException if file operations fail
      */
-    public void convert(String inputJsonPath, String outputAvscPath) throws IOException {
+    public void convert(String inputJsonPath, String outputAvscPath, ConversionOptions options)
+            throws IOException {
+        NotifWrapperGenerator.validate(options.envelope());
+
         File inputFile = new File(inputJsonPath);
         if (!inputFile.exists()) {
             throw new IOException("Input JSON file not found: " + inputJsonPath);
         }
 
         JsonNode rootNode = objectMapper.readTree(inputFile);
-
         AvroTypeInfo typeInfo = inferenceEngine.inferType(rootNode, "Root");
-
-        String prettyJson = schemaGenerator.generateSchemaJson(typeInfo, "RootRecord");
-
-        SchemaFileWriter.write(prettyJson, outputAvscPath, envelopeName, null);
-    }
-
-    /**
-     * Set the envelope template used to build the notif-wrapped (.webhook.avsc) output.
-     *
-     * @param envelopeName the envelope template name (see {@link NotifWrapperGenerator})
-     */
-    public void setEnvelope(String envelopeName) {
-        this.envelopeName = envelopeName;
+        String prettyJson = schemaGenerator.generateSchemaJson(typeInfo, "RootRecord", options);
+        SchemaFileWriter.write(prettyJson, outputAvscPath, options.envelope(), null);
     }
 
     /**
@@ -100,12 +84,5 @@ public class JsonToAvroConverter {
         JsonNode rootNode = objectMapper.readTree(jsonString);
         AvroTypeInfo typeInfo = inferenceEngine.inferType(rootNode, recordName);
         return schemaGenerator.generateSchema(typeInfo, recordName);
-    }
-
-    /**
-     * Get the schema generator (for testing).
-     */
-    public SchemaGenerator getSchemaGenerator() {
-        return schemaGenerator;
     }
 }
